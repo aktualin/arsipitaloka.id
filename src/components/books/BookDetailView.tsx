@@ -138,8 +138,8 @@ export default async function BookDetailView({
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             {sudahPunya && book.fileUrl ? (
-              /* Buku sudah dimiliki (dibeli) ATAU buku gratis yang sudah
-                 diklaim & punya file → tombol Baca + Unduh, bukan "Beli". */
+              /* Buku sudah dimiliki (dibeli) → tombol Baca + Unduh, bukan
+                 "Beli". */
               <>
                 <a
                   href={`/api/read/${book.id}`}
@@ -164,9 +164,25 @@ export default async function BookDetailView({
                   Lihat di Pustaka Saya →
                 </Link>
               </>
+            ) : sudahPunya ? (
+              /* Sudah dibeli, tapi file-nya belum tersedia → tetap bukan
+                 tombol Beli: buku ini sudah milik user. */
+              <div className="w-full space-y-2">
+                <p className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
+                  Buku ini sudah Anda miliki. File e-book-nya belum tersedia
+                  — hubungi kami bila Anda membutuhkannya.
+                </p>
+                <Link
+                  href="/akun"
+                  className="text-sm font-medium text-maroon hover:underline"
+                >
+                  Lihat di Pustaka Saya →
+                </Link>
+              </div>
             ) : book.isFree ? (
-              /* Buku gratis (belum login / belum punya file) → tombol Download:
-                 klaim lewat /api/checkout lalu buka file. Bukan "Beli Sekarang". */
+              /* Buku gratis yang belum diklaim → tombol Download:
+                 klaim lewat /api/checkout (jadi order PAID) lalu buka file.
+                 Bukan "Beli Sekarang". */
               <div className="w-full space-y-2">
                 <FreeDownloadButton
                   bookId={book.id}

@@ -37,7 +37,7 @@ export type CartEntry = {
 };
 
 export type AddToCartResult =
-  | { status: "added" | "exists" | "owned" | "invalid"; count: number };
+  | { status: "added" | "exists" | "owned" | "free" | "invalid"; count: number };
 
 /** Semua item keranjang user, terbaru di atas. */
 export async function getCart(userId: string): Promise<CartEntry[]> {
@@ -68,8 +68,9 @@ export async function getCartCount(userId: string): Promise<number> {
 }
 
 /**
- * Tambah buku ke keranjang. Menolak buku yang tidak ada/diarsipkan, dan buku
- * yang sudah dimiliki user (gratis atau sudah dibeli).
+ * Tambah buku ke keranjang. Menolak buku yang tidak ada/diarsipkan, buku
+ * gratis (diunduh langsung, tidak perlu keranjang), dan buku yang sudah
+ * dimiliki user.
  */
 export async function addToCart(
   userId: string,
@@ -77,15 +78,23 @@ export async function addToCart(
 ): Promise<AddToCartResult> {
   const book = await prisma.book.findUnique({
     where: { id: bookId },
-    select: { id: true, archived: true },
+    select: { id: true, archived: true, isFree: true },
   });
 
   if (!book || book.archived) {
     return { status: "invalid", count: await getCartCount(userId) };
   }
 
+  // Sudah dibayar → tidak boleh dibeli (lagi). Dicek lebih dulu supaya buku
+  // gratis yang SUDAH diklaim dilaporkan sebagai "owned", bukan "free".
   if (await canAccessBook(userId, bookId)) {
     return { status: "owned", count: await getCartCount(userId) };
+  }
+
+  // Buku gratis diambil langsung dari halaman buku (tombol Download), bukan
+  // lewat keranjang — supaya tidak pernah ikut jadi item Snap bernilai 0.
+  if (book.isFree) {
+    return { status: "free", count: await getCartCount(userId) };
   }
 
   const existing = await prisma.cartItem.findUnique({

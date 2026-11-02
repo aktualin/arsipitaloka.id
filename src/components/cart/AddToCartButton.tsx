@@ -53,7 +53,7 @@ export default function AddToCartButton({
 
       const data = (await res.json()) as {
         ok?: boolean;
-        status?: "added" | "exists" | "owned" | "invalid";
+        status?: "added" | "exists" | "owned" | "free" | "invalid";
         count?: number;
         error?: string;
       };

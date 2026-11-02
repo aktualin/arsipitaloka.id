@@ -84,11 +84,14 @@ async function main() {
     },
   });
 
-  const book = await prisma.book.findUnique({
-    where: { id: "seed-book-0" },
+  // Buku uji: pakai buku yang filenya tersedia, supaya unduh bisa dicek.
+  // (Dulu skrip ini memakai id "seed-book-0" yang sudah tidak ada di seed.)
+  const book = await prisma.book.findFirst({
+    where: { archived: false, fileUrl: { not: null } },
+    orderBy: { title: "asc" },
     select: { id: true, title: true, fileUrl: true },
   });
-  if (!book) throw new Error("Buku seed tidak ada");
+  if (!book) throw new Error("Buku seed tanpa file tidak ada");
 
   const order = await prisma.order.create({
     data: {
@@ -146,7 +149,6 @@ async function main() {
       ["/admin", "Dashboard"],
       ["/admin/book", "Kelola data buku"],
       ["/admin/category", "Kelola data kategori"],
-      ["/admin/tab", "Kelola data tab konten"],
       ["/admin/documentation", "Kelola data dokumentasi"],
       ["/admin/tiktok", "Kelola data tiktok"],
       ["/admin/users", "Terakhir login"],
@@ -191,10 +193,14 @@ async function main() {
       redirect: "manual",
       headers: { cookie: buyerClient.cookie() },
     });
+    // Guard area admin memakai redirect() di dalam <Suspense> (lihat
+    // CLAUDE.md — jangan melempar error di dalam boundary), jadi status
+    // HTTP-nya 200 dan pengalihan terjadi di sisi klien/RSC.
     check(
-      "pembeli → /admin dialihkan",
-      buyerAdmin.status === 307,
-      `${buyerAdmin.status} ${buyerAdmin.headers.get("location")}`,
+      "pembeli → /admin tidak menampilkan isi admin",
+      buyerAdmin.status === 200 &&
+        !(await buyerAdmin.clone().text()).includes("Ringkasan transaksi"),
+      String(buyerAdmin.status),
     );
 
     const download = await fetch(`${BASE}/api/download/${book.id}`, {

@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import Image from "next/image";
 import { Download, BookOpen, Clock, Ban } from "lucide-react";
 import { requireUser, getLibrary, summarizeLibrary } from "@/lib/library";
+import FreeDownloadButton from "@/components/books/FreeDownloadButton";
 import type { LibraryEntry } from "@/lib/library";
 import Pagination from "@/components/Pagination";
 import { clampPage, parsePage, parsePerPage } from "@/lib/pagination";
@@ -386,7 +387,10 @@ function LibraryCard({ entry }: { entry: LibraryEntry }) {
 
         <div className="mt-3 border-t border-neutral-100 pt-3 text-[11px] text-neutral-500">
           {entry.source === "free" ? (
-            <p>Buku gratis — dapat diakses tanpa pembayaran.</p>
+            <p>
+              Buku gratis — klik Download untuk mengklaimnya (tanpa pembayaran),
+              lalu file-nya bisa langsung dibuka.
+            </p>
           ) : (
             <>
               <p>
@@ -446,7 +450,18 @@ function LibraryCard({ entry }: { entry: LibraryEntry }) {
             </a>
           ) : null}
 
-          {!entry.canAccess && !dibatalkan ? (
+          {!entry.canAccess && entry.source === "free" ? (
+            /* Buku gratis yang belum diklaim → klaim dulu (order PAID),
+               baru file boleh dibuka. */
+            <FreeDownloadButton
+              bookId={book.id}
+              label="Download"
+              wrapperClassName="min-w-0 flex-1"
+              className="w-full"
+            />
+          ) : null}
+
+          {!entry.canAccess && entry.source === "purchase" && !dibatalkan ? (
             <p className="inline-flex items-center gap-1.5 text-xs text-amber-700">
               <Clock size={14} /> Menunggu pembayaran — akses belum aktif
             </p>

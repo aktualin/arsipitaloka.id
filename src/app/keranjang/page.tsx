@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
-import { requireUser } from "@/lib/library";
+import { requireUser, getOwnedBookIds } from "@/lib/library";
 import { getCart } from "@/lib/cart";
 import { calculateCartPrice } from "@/lib/pricing";
 import { getMidtransConfig } from "@/lib/midtrans";
@@ -48,8 +48,19 @@ async function CartPageContent() {
   const user = await requireUser();
   const cart = await getCart(user.id);
 
+  // Buku yang sudah dimiliki user tidak boleh dibeli lagi — itemnya
+  // ditandai di daftar dan tidak ikut dihitung harga/checkout.
+  const ownedIds = new Set(
+    await getOwnedBookIds(
+      user.id,
+      cart.map((entry) => entry.book.id),
+    ),
+  );
+
   // Hanya buku yang masih bisa dibeli yang ikut dihitung harga/checkout.
-  const buyable = cart.filter((entry) => !entry.book.archived);
+  const buyable = cart.filter(
+    (entry) => !entry.book.archived && !ownedIds.has(entry.book.id),
+  );
   const price = await calculateCartPrice(buyable.map((e) => e.book.priceUsd));
   const config = await getMidtransConfig();
 
@@ -84,6 +95,7 @@ async function CartPageContent() {
             {cart.map((entry) => {
               const { book } = entry;
               const href = `/buku/e-book/${book.slug}`;
+              const owned = ownedIds.has(book.id);
               return (
                 <li
                   key={entry.id}
@@ -112,6 +124,15 @@ async function CartPageContent() {
                     {book.archived ? (
                       <p className="mt-1 text-xs text-red-600">
                         Buku tidak lagi tersedia — akan dilewati saat checkout.
+                      </p>
+                    ) : null}
+                    {owned ? (
+                      <p className="mt-1 text-xs text-neutral-600">
+                        Sudah Anda miliki — tidak bisa dibeli lagi, akan dilewati
+                        saat checkout.{" "}
+                        <Link href="/akun" className="underline">
+                          Buka Pustaka Saya
+                        </Link>
                       </p>
                     ) : null}
                     <div className="mt-auto flex items-center justify-between pt-2">

@@ -16,6 +16,7 @@
     "db:sample-book": "npx tsx scripts/attach-sample-book.ts",
     "test:login-admin": "npx tsx scripts/test-admin-login.mts",
     "test:pagination": "npx tsx scripts/test-pagination.mts",
+    "test:book-access": "npx tsx scripts/test-book-access.ts",
     "db:fixture-buyer": "npx tsx scripts/buyer-library-fixture.ts",
     "db:check:midtrans": "npx tsx scripts/check-midtrans-settings.ts",
     "probe:midtrans": "npx tsx scripts/probe-midtrans.ts",

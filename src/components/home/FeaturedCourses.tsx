@@ -32,6 +32,7 @@ export default async function FeaturedCourses() {
         priceUsd: true,
         isNew: true,
         isFree: true,
+        fileUrl: true,
       },
     }),
     // Tab YouTube → video YouTube (tabel SocialMedia).
@@ -166,6 +167,7 @@ export default async function FeaturedCourses() {
             priceUsd: String(book.priceUsd),
             isNew: book.isNew,
             isFree: book.isFree,
+            hasFile: Boolean(book.fileUrl),
             tabSlug: BOOK_TAB_SLUG,
           },
         });

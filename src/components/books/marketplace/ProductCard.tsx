@@ -2,9 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { formatIdr } from "./market-utils";
-import AddToCartButton from "@/components/cart/AddToCartButton";
-import BuyButton from "@/components/books/BuyButton";
-import FreeDownloadButton from "@/components/books/FreeDownloadButton";
+import OwnedBookActions from "@/components/books/OwnedBookActions";
+import OwnedBadge from "@/components/books/OwnedBadge";
 import { BOOK_TAB_SLUG } from "@/lib/site-tabs";
 
 export type MarketplaceBook = {
@@ -20,6 +19,8 @@ export type MarketplaceBook = {
   priceUsd: string | number;
   isNew: boolean;
   isFree: boolean;
+  /** File e-book tersedia? (kalau ya, kartu yang sudah dimiliki bisa "Baca") */
+  hasFile?: boolean;
   /** Slug tab bukunya — link detail `/buku/<tab>/<slug-buku>`. */
   tabSlug?: string | null;
 };
@@ -56,6 +57,7 @@ export default function ProductCard({ book }: { book: MarketplaceBook }) {
         )}
 
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+          <OwnedBadge bookId={book.id} />
           {book.isNew ? (
             <span className="rounded bg-maroon-dark px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
               New
@@ -102,34 +104,15 @@ export default function ProductCard({ book }: { book: MarketplaceBook }) {
           </p>
           {/* Baris aksi: tinggi tombol seragam (h-9) dan selalu menempel di
               dasar kartu, sehingga tombol antar-kartu pada satu baris grid
-              sejajar. Buku gratis memakai satu tombol penuh; buku berbayar
-              memakai ikon keranjang (label "Keranjang" tidak muat di kartu
-              2 kolom) + tombol "Beli". */}
+              sejajar. Buku yang sudah dimiliki user tidak lagi menampilkan
+              tombol Beli/Keranjang (lihat OwnedBookActions). */}
           <div className="mt-2 flex items-stretch gap-1.5">
-            {book.isFree ? (
-              <FreeDownloadButton
-                bookId={book.id}
-                compact
-                wrapperClassName="min-w-0 flex-1"
-                className="w-full"
-              />
-            ) : (
-              <>
-                <AddToCartButton
-                  bookId={book.id}
-                  iconOnly
-                  wrapperClassName="shrink-0"
-                  className="w-9"
-                />
-                <BuyButton
-                  bookId={book.id}
-                  label="Beli"
-                  compact
-                  wrapperClassName="min-w-0 flex-1"
-                  className="w-full"
-                />
-              </>
-            )}
+            <OwnedBookActions
+              bookId={book.id}
+              isFree={book.isFree}
+              hasFile={book.hasFile}
+              variant="market"
+            />
           </div>
         </div>
       </div>

@@ -1,9 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Star } from "lucide-react";
-import AddToCartButton from "@/components/cart/AddToCartButton";
-import BuyButton from "@/components/books/BuyButton";
-import FreeDownloadButton from "@/components/books/FreeDownloadButton";
+import OwnedBookActions from "@/components/books/OwnedBookActions";
 import { formatIdr } from "@/components/books/marketplace/market-utils";
 import { BOOK_TAB_SLUG } from "@/lib/site-tabs";
 
@@ -20,6 +18,8 @@ export type BookCardData = {
   priceUsd: string | number;
   isNew: boolean;
   isFree: boolean;
+  /** File e-book tersedia? (kalau ya, kartu yang sudah dimiliki bisa "Baca") */
+  hasFile?: boolean;
   /** Slug tab bukunya — dipakai untuk link detail `/buku/<tab>/<slug>`. */
   tabSlug?: string | null;
 };
@@ -96,31 +96,15 @@ export default function BookCard({ book }: { book: BookCardData }) {
           </Link>
         </div>
         {/* Baris aksi: tinggi tombol seragam (h-9), lebar penuh, dan
-            menempel di dasar kartu supaya sejajar antar-kartu. */}
+            menempel di dasar kartu supaya sejajar antar-kartu. Buku yang
+            sudah dimiliki user tidak lagi menampilkan tombol Beli. */}
         <div className="mt-2 flex items-stretch gap-2">
-          {book.isFree ? (
-            <FreeDownloadButton
-              bookId={book.id}
-              compact
-              wrapperClassName="min-w-0 flex-1"
-              className="w-full"
-            />
-          ) : (
-            <>
-              <AddToCartButton
-                bookId={book.id}
-                wrapperClassName="min-w-0 flex-1"
-                className="w-full"
-              />
-              <BuyButton
-                bookId={book.id}
-                label="Beli"
-                compact
-                wrapperClassName="min-w-0 flex-1"
-                className="w-full"
-              />
-            </>
-          )}
+          <OwnedBookActions
+            bookId={book.id}
+            isFree={book.isFree}
+            hasFile={book.hasFile}
+            variant="card"
+          />
         </div>
       </div>
     </div>

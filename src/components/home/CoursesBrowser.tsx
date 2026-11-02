@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import BookCard, { type BookCardData } from "@/components/books/BookCard";
+import OwnedBooksProvider from "@/components/books/OwnedBooksProvider";
 import ArticleCard, { type ArticleCardData } from "@/components/articles/ArticleCard";
 import SocialEmbedPlayer from "@/components/social/SocialEmbedPlayer";
 import type { SocialPostData } from "@/components/social/types";
@@ -191,45 +192,47 @@ export default function CoursesBrowser({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {visible.map((item) => {
-              if (item.kind === "book") {
-                return <BookCard key={item.book.id} book={item.book} />;
-              }
-              if (item.kind === "doc") {
-                return <DocCard key={item.doc.id} doc={item.doc} />;
-              }
-              if (item.kind === "article") {
-                return <ArticleCard key={item.article.id} article={item.article} />;
-              }
-              const post = item.social;
-              return (
-                <div
-                  key={post.id}
-                  className="flex h-full flex-col overflow-hidden rounded-xl border border-neutral-100 bg-white p-3"
-                >
-                  <SocialEmbedPlayer
-                    platform={post.platform}
-                    videoId={post.videoId}
-                    embedUrl={post.embedUrl}
-                    title={post.title}
-                    author={post.author}
-                    poster={post.coverUrl}
-                    defer
-                    showOverlay={false}
-                  />
-                  <h3 className="mt-2 line-clamp-2 px-1 text-sm font-semibold leading-snug text-black">
-                    {post.title}
-                  </h3>
-                  {post.author && !/^https?:\/\//i.test(post.author) ? (
-                    <p className="mt-1 px-1 text-xs text-neutral-500">
-                      oleh {post.author}
-                    </p>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
+          <OwnedBooksProvider>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {visible.map((item) => {
+                if (item.kind === "book") {
+                  return <BookCard key={item.book.id} book={item.book} />;
+                }
+                if (item.kind === "doc") {
+                  return <DocCard key={item.doc.id} doc={item.doc} />;
+                }
+                if (item.kind === "article") {
+                  return <ArticleCard key={item.article.id} article={item.article} />;
+                }
+                const post = item.social;
+                return (
+                  <div
+                    key={post.id}
+                    className="flex h-full flex-col overflow-hidden rounded-xl border border-neutral-100 bg-white p-3"
+                  >
+                    <SocialEmbedPlayer
+                      platform={post.platform}
+                      videoId={post.videoId}
+                      embedUrl={post.embedUrl}
+                      title={post.title}
+                      author={post.author}
+                      poster={post.coverUrl}
+                      defer
+                      showOverlay={false}
+                    />
+                    <h3 className="mt-2 line-clamp-2 px-1 text-sm font-semibold leading-snug text-black">
+                      {post.title}
+                    </h3>
+                    {post.author && !/^https?:\/\//i.test(post.author) ? (
+                      <p className="mt-1 px-1 text-xs text-neutral-500">
+                        oleh {post.author}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </OwnedBooksProvider>
 
           {totalPages > 1 ? (
             <div className="mt-8 flex items-center justify-center gap-4">

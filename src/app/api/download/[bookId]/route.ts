@@ -6,8 +6,9 @@ import { serveBookFile } from "@/lib/book-file";
 /**
  * GET /api/download/[bookId] — unduh file e-book.
  *
- * Akses hanya untuk user yang login DAN punya order berstatus PAID/COMPLETED
- * untuk buku tersebut (atau buku gratis yang belum diarsipkan).
+ * Akses HANYA untuk user yang login DAN sudah membeli buku tersebut dengan
+ * order berstatus PAID/SHIPPED/COMPLETED. Buku gratis harus diklaim dulu
+ * (POST /api/checkout → order PAID) — tanpa itu jawabannya 403.
  */
 export async function GET(
   _request: Request,

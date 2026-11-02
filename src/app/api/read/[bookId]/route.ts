@@ -5,7 +5,10 @@ import { serveBookFile } from "@/lib/book-file";
 
 /**
  * GET /api/read/[bookId] — buka file e-book di browser (inline).
- * Aturan akses sama persis dengan /api/download.
+ *
+ * Akses HANYA untuk user yang login DAN sudah membeli buku tersebut dengan
+ * order berstatus PAID/SHIPPED/COMPLETED. Buku gratis harus diklaim dulu
+ * (POST /api/checkout → order PAID) — tanpa itu jawabannya 403.
  */
 export async function GET(
   _request: Request,

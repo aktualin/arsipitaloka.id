@@ -59,6 +59,28 @@ export async function POST(request: Request) {
     });
   }
 
+  // Sudah ada order yang masih menunggu pembayaran untuk buku ini → jangan
+  // membuat order kedua (mencegah pembayaran dobel untuk buku yang sama).
+  const pending = await prisma.order.findFirst({
+    where: {
+      userId,
+      status: "PENDING",
+      items: { some: { bookId: book.id } },
+    },
+    select: { id: true },
+  });
+  if (pending) {
+    return Response.json(
+      {
+        error:
+          "Anda sudah punya order yang menunggu pembayaran untuk buku ini.",
+        orderId: pending.id,
+        redirectUrl: `/akun/orders/${pending.id}`,
+      },
+      { status: 409 },
+    );
+  }
+
   const price = await calculatePrice(Number(book.priceUsd));
 
   // Buku gratis: order langsung lunas tanpa payment gateway.

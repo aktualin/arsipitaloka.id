@@ -12,6 +12,7 @@ import {
 import { clampPage, parsePage } from "@/lib/pagination";
 import FilterSidebar from "@/components/books/marketplace/FilterSidebar";
 import ProductGrid from "@/components/books/marketplace/ProductGrid";
+import OwnedBooksProvider from "@/components/books/OwnedBooksProvider";
 import SortBar from "@/components/books/marketplace/SortBar";
 import MarketPagination from "@/components/books/marketplace/MarketPagination";
 import {
@@ -131,6 +132,7 @@ export default async function CatalogView({
       priceUsd: true,
       isNew: true,
       isFree: true,
+      fileUrl: true,
     },
   });
 
@@ -318,23 +320,26 @@ export default async function CatalogView({
             <div className="mt-4">{sidebar}</div>
           </details>
 
-          <ProductGrid
-            books={books.map((book) => ({
-              id: book.id,
-              slug: book.slug,
-              title: book.title,
-              author: book.author,
-              coverUrl: book.coverUrl,
-              language: book.language,
-              pages: book.pages,
-              readCount: book.readCount,
-              rating: String(book.rating),
-              priceUsd: String(book.priceUsd),
-              isNew: book.isNew,
-              isFree: book.isFree,
-              tabSlug: BOOK_TAB_SLUG,
-            }))}
-          />
+          <OwnedBooksProvider>
+            <ProductGrid
+              books={books.map((book) => ({
+                id: book.id,
+                slug: book.slug,
+                title: book.title,
+                author: book.author,
+                coverUrl: book.coverUrl,
+                language: book.language,
+                pages: book.pages,
+                readCount: book.readCount,
+                rating: String(book.rating),
+                priceUsd: String(book.priceUsd),
+                isNew: book.isNew,
+                isFree: book.isFree,
+                hasFile: Boolean(book.fileUrl),
+                tabSlug: BOOK_TAB_SLUG,
+              }))}
+            />
+          </OwnedBooksProvider>
 
           {relatedPosts.length > 0 ? (
             <RelatedSocialMedia

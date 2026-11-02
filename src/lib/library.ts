@@ -213,9 +213,11 @@ export async function getLibrary(userId: string): Promise<LibraryEntry[]> {
       latestStatus: null,
       acquiredAt: null,
       paidUsd: 0,
-      canAccess: true,
+      // Belum diklaim → belum punya akses. Klaim dilakukan lewat
+      // POST /api/checkout (order PAID), baru file boleh dibuka.
+      canAccess: false,
       hasFile: Boolean(book.fileUrl),
-      canDownload: Boolean(book.fileUrl) && (book.isDownloadable || book.isFree),
+      canDownload: false,
     });
   }
 
@@ -275,22 +277,16 @@ export async function getPurchasedItems(userId: string) {
 }
 
 /**
- * Apakah user berhak membuka file buku ini?
- * Granted bila: (a) pernah membeli lewat order PAID/SHIPPED/COMPLETED, atau
- * (b) buku gratis dan belum diarsipkan.
+ * Apakah user sudah membeli (lunas) buku ini?
+ *
+ * Dasarnya hanya order berstatus PAID/SHIPPED/COMPLETED. Buku gratis pun
+ * harus diklaim lebih dulu (POST /api/checkout → order PAID) supaya klaimnya
+ * tercatat sebagai transaksi.
  */
-export async function canAccessBook(
+export async function hasPurchasedBook(
   userId: string,
   bookId: string,
 ): Promise<boolean> {
-  const book = await prisma.book.findUnique({
-    where: { id: bookId },
-    select: { id: true, isFree: true, archived: true },
-  });
-  if (!book) return false;
-
-  // Kalau sudah pernah dibeli (lunas/dikirim/selesai) → akses tetap ada,
-  // walau bukunya sekarang diarsipkan.
   const item = await prisma.orderItem.findFirst({
     where: {
       bookId,
@@ -298,10 +294,47 @@ export async function canAccessBook(
     },
     select: { id: true },
   });
-  if (item) return true;
+  return item !== null;
+}
 
-  // Belum dibeli: buku gratis yang aktif boleh diakses semua orang.
-  return book.isFree && !book.archived;
+/**
+ * Id buku yang sudah dimiliki user (order lunas).
+ *
+ * Dipakai halaman katalog supaya kartu buku yang sudah dibeli tidak
+ * menampilkan tombol "Beli" lagi. `bookIds` opsional — kalau diisi, hanya
+ * buku-buku itu yang dicek.
+ */
+export async function getOwnedBookIds(
+  userId: string,
+  bookIds?: string[],
+): Promise<string[]> {
+  const rows = await prisma.orderItem.findMany({
+    where: {
+      bookId: bookIds ? { in: bookIds } : undefined,
+      order: { userId, status: { in: [...ACCESS_STATUSES] } },
+    },
+    select: { bookId: true },
+    distinct: ["bookId"],
+  });
+  return rows.map((row) => row.bookId);
+}
+
+/**
+ * Apakah user berhak membuka file buku ini?
+ *
+ * HAK AKSAS HANYA berasal dari pembelian yang sudah lunas (PAID/SHIPPED/
+ * COMPLETED). Buku yang belum dibeli — termasuk buku gratis yang belum
+ * diklaim — tidak boleh bisa di-preview atau diunduh lewat API, apa pun
+ * status loginnya. Buku gratis memperoleh akses lewat klaim
+ * (POST /api/checkout → order PAID) seperti buku berbayar.
+ *
+ * Buku yang sudah dibeli tetap bisa diakses walau kini diarsipkan.
+ */
+export async function canAccessBook(
+  userId: string,
+  bookId: string,
+): Promise<boolean> {
+  return hasPurchasedBook(userId, bookId);
 }
 
 const MIME: Record<string, string> = {

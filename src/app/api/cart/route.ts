@@ -58,6 +58,26 @@ export async function POST(request: Request) {
       { status: 404 },
     );
   }
+  if (result.status === "free") {
+    return Response.json(
+      {
+        ok: false,
+        status: result.status,
+        count: result.count,
+        error: "Buku gratis — unduh langsung.",
+      },
+    );
+  }
+  if (result.status === "owned") {
+    return Response.json(
+      {
+        ok: false,
+        status: result.status,
+        count: result.count,
+        error: "Buku ini sudah Anda miliki.",
+      },
+    );
+  }
 
   return Response.json({ ok: true, status: result.status, count: result.count });
 }
