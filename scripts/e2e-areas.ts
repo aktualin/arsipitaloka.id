@@ -97,7 +97,7 @@ async function main() {
       deliveryMethod: "DOWNLOAD",
       subtotal: 25,
       total: 25,
-      usdToIdrRate: 16000,
+      usdToIdrRate: 1,
       paymentProvider: "manual",
       paymentMethod: "FREE",
       paidAt: new Date(),

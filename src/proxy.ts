@@ -1,5 +1,35 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { ENTITIES } from "@/lib/admin/entities";
+
+/**
+ * Halaman admin yang punya route sendiri (bukan entitas CRUD generik).
+ * `/admin` sendiri tidak termasuk — segment pertama kosong.
+ */
+const ADMIN_PAGES = new Set([
+  "akun",
+  "newsletter",
+  "orders",
+  "profile",
+  "users",
+  "export",
+]);
+
+/**
+ * Apakah path `/admin/<segmen>` tidak dikenal?
+ *
+ * Contoh: `/admin/laporan` — route-nya sudah dihapus (laporan kini menyatu di
+ * `/admin`). Tanpa cek di sini, path itu akan jatuh ke route generik
+ * `/admin/[entity]` dan menghasilkan halaman 404 berstatus 200 (lemparan
+ * `notFound()` di dalam `<Suspense>` layout admin tidak bisa jadi status 404).
+ * Di proxy, redirect-nya jadi 307 yang benar.
+ */
+function isUnknownAdminPath(pathname: string): boolean {
+  const rest = pathname.slice("/admin".length).replace(/^\/+/, "");
+  const first = rest.split("/")[0] ?? "";
+  if (!first) return false;
+  return !ADMIN_PAGES.has(first) && !ENTITIES[first];
+}
 
 /**
  * Gerbang area admin + area pembeli — lapisan pertama, cepat.
@@ -43,7 +73,13 @@ export default auth((req) => {
     pathname.startsWith("/akun") || pathname.startsWith("/keranjang");
 
   if (isAdminArea) {
-    if (session?.role === "ADMIN") return NextResponse.next();
+    if (session?.role === "ADMIN") {
+      // Path admin yang tidak dikenal → dashboard (307, bukan 404 palsu).
+      if (isUnknownAdminPath(pathname)) {
+        return NextResponse.redirect(new URL("/admin", req.nextUrl));
+      }
+      return NextResponse.next();
+    }
     // Sudah login tapi bukan admin:
     //  - endpoint API admin → 403 JSON (bukan redirect, supaya fetch tidak
     //    menerima HTML);

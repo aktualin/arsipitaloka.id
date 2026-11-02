@@ -93,6 +93,7 @@ async function create() {
   const statuses = ["PAID", "SHIPPED", "PENDING", "CANCELLED"] as const;
   const created: string[] = [];
 
+  // Harga buku sudah dalam Rupiah (IDR) — kurs legacy `usdToIdrRate` selalu 1.
   for (let i = 0; i < statuses.length; i += 1) {
     const status = statuses[i];
     const book = books[i];
@@ -104,7 +105,7 @@ async function create() {
         subtotal: "25000",
         taxAmount: "0",
         total: "25000",
-        usdToIdrRate: "16000",
+        usdToIdrRate: "1",
         paymentProvider: "manual",
         paymentMethod: "QRIS",
         paidAt: status === "PAID" || status === "SHIPPED" ? new Date() : null,
@@ -130,7 +131,7 @@ async function create() {
       subtotal: "50000",
       taxAmount: "0",
       total: "50000",
-      usdToIdrRate: "16000",
+      usdToIdrRate: "1",
       paymentProvider: "manual",
       paymentMethod: "QRIS",
       paidAt: new Date(),

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { Plus, ArrowLeft } from "lucide-react";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { getEntity } from "@/lib/admin/entities";
@@ -69,14 +69,19 @@ async function AdminEntityPageContent({
   await connection();
 
   const admin = await requireAdmin();
-  if (!admin) notFound();
+  // `notFound()` TIDAK boleh dipakai di sini: halaman ini berada di dalam
+  // <Suspense> milik layout admin, dan lemparan error di dalam boundary itu
+  // membuat route merespons 200 dengan shell kosong (halaman 404 tidak pernah
+  // terkirim). Pakai `redirect()` saja.
+  if (!admin) redirect("/login?callbackUrl=/admin");
 
   const { entity } = await params;
   const def = getEntity(entity);
-  if (!def) notFound();
+  // Entitas tidak dikenal (mis. URL lama /admin/laporan) → kembali ke dashboard.
+  if (!def) redirect("/admin");
 
   const delegate = getDelegate(def.model);
-  if (!delegate) notFound();
+  if (!delegate) redirect("/admin");
 
   const sp = await searchParams;
   const editId = sp.edit ?? null;

@@ -121,7 +121,14 @@ const USERS: SeedUser[] = [
   },
 ];
 
-/** Order contoh — supaya Pustaka Saya pembeli langsung terisi. */
+/**
+ * Order contoh — supaya Pustaka Saya pembeli langsung terisi.
+ *
+ * `daysAgo` besaran: tanggal order disebar dalam 12 bulan terakhir, supaya
+ * grafik dashboard (default: bulanan dalam setahun) punya isi di beberapa
+ * periode, bukan semua menumpuk di bulan seed dijalankan. Nilainya relatif
+ * terhadap saat seed dijalankan, jadi seed tetap idempotent.
+ */
 const ORDERS = [
   {
     id: "seed-order-rizky-1",
@@ -129,6 +136,7 @@ const ORDERS = [
     status: "PAID" as const,
     deliveryMethod: "DOWNLOAD" as const,
     bookIds: ["seed-book-renungan-kloset", "seed-book-ups"],
+    daysAgo: 35,
   },
   {
     id: "seed-order-siti-1",
@@ -136,6 +144,7 @@ const ORDERS = [
     status: "SHIPPED" as const,
     deliveryMethod: "DOWNLOAD" as const,
     bookIds: ["seed-book-kekerasan-negara"],
+    daysAgo: 75,
   },
   {
     id: "seed-order-budi-1",
@@ -143,6 +152,7 @@ const ORDERS = [
     status: "PENDING" as const,
     deliveryMethod: "DOWNLOAD" as const,
     bookIds: ["seed-book-banalitas-kekerasan"],
+    daysAgo: 3,
   },
   {
     id: "seed-order-dewi-1",
@@ -150,6 +160,7 @@ const ORDERS = [
     status: "PAID" as const,
     deliveryMethod: "DOWNLOAD" as const,
     bookIds: ["seed-book-sumpah-saripah", "seed-book-panduan-arsip"],
+    daysAgo: 163,
   },
 ];
 
@@ -292,7 +303,9 @@ async function main() {
   console.log(`User pembeli: ${USERS.length} (password: ${SEED_USER_PASSWORD})`);
 
   /* ----------------------------- Order ----------------------------- */
-  const rate = 16000;
+  // Harga buku sudah disimpan dalam Rupiah (IDR) — tidak ada konversi USD lagi,
+  // jadi kurs legacy `usdToIdrRate` selalu 1 (lihat src/lib/pricing.ts).
+  const rate = 1;
   for (const o of ORDERS) {
     const items = [];
     let subtotal = 0;
@@ -311,6 +324,17 @@ async function main() {
       });
     }
     const tax = Math.round(subtotal * 0.11);
+
+    // Tanggal order disebar sesuai `daysAgo` supaya grafik dashboard (default:
+    // bulanan dalam setahun) terisi di beberapa periode, bukan semua di bulan
+    // seed dijalankan. `paidAt` menyusul `createdAt` — order yang belum dibayar
+    // (PENDING) tidak punya `paidAt`.
+    const createdAt = new Date(Date.now() - o.daysAgo * 86_400_000);
+    const paidAt =
+      o.status === "PAID" || o.status === "SHIPPED"
+        ? new Date(createdAt.getTime() + 86_400_000)
+        : null;
+
     await prisma.order.upsert({
       where: { id: o.id },
       update: {
@@ -323,7 +347,8 @@ async function main() {
         usdToIdrRate: rate,
         paymentProvider: o.status === "PAID" || o.status === "SHIPPED" ? "manual" : null,
         paymentMethod: o.status === "PAID" || o.status === "SHIPPED" ? "QRIS" : null,
-        paidAt: o.status === "PAID" || o.status === "SHIPPED" ? new Date() : null,
+        createdAt,
+        paidAt,
       },
       create: {
         id: o.id,
@@ -337,7 +362,8 @@ async function main() {
         usdToIdrRate: rate,
         paymentProvider: o.status === "PAID" || o.status === "SHIPPED" ? "manual" : null,
         paymentMethod: o.status === "PAID" || o.status === "SHIPPED" ? "QRIS" : null,
-        paidAt: o.status === "PAID" || o.status === "SHIPPED" ? new Date() : null,
+        createdAt,
+        paidAt,
         items: { create: items },
       },
     });

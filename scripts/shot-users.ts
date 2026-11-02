@@ -95,7 +95,7 @@ async function create() {
       deliveryMethod: "DOWNLOAD",
       subtotal: 25,
       total: 400000,
-      usdToIdrRate: 16000,
+      usdToIdrRate: 1,
       paymentProvider: "manual",
       paymentMethod: "QRIS",
       paidAt: new Date(),

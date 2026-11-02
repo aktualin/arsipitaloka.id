@@ -107,7 +107,7 @@ model Order {
   taxType         String? // "PERCENTAGE" | "FIXED" (snapshot)
   taxAmount       Decimal        @db.Decimal(12, 2) @default(0)
   total           Decimal        @db.Decimal(12, 2) // IDR, yang ditagih
-  usdToIdrRate    Decimal        @db.Decimal(10, 2) // kurs saat transaksi
+  usdToIdrRate    Decimal        @db.Decimal(10, 2) // legacy: harga sudah dalam IDR, kolom ini snapshot lama (selalu 1 untuk order dari aplikasi)
   paymentProvider String? // "midtrans" | "manual"
   paymentMethod   String? // "QRIS" | "VA" | "EWALLET" | "FREE"
   paymentRef      String?        @unique
