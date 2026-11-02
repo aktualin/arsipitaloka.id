@@ -12,8 +12,15 @@ import {
   // SocialButtons,
   SubText,
 } from "@/components/auth/fields";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Login — Pitaloka" };
+/** Halaman auth tidak boleh diindeks sama sekali. */
+export const metadata = buildMetadata({
+  title: "Masuk",
+  description:
+    "Masuk ke akun Arsip Pitaloka untuk akses pustaka digital, e-book, dan riwayat pembelian Anda.",
+  noIndex: true,
+});
 
 export default function LoginPage() {
   return (

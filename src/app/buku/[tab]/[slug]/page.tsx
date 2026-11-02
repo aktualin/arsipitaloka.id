@@ -1,15 +1,49 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import BookDetailView from "@/components/books/BookDetailView";
+import BookJsonLd, {
+  bookCanonicalPath,
+  bookKeywords,
+  bookMetaDescription,
+  getBookSeoData,
+} from "@/components/books/BookJsonLd";
 import RedirectTo from "@/components/books/RedirectTo";
 import PageLoader from "@/components/PageLoader";
 import { BOOK_TAB_SLUG } from "@/lib/site-tabs";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Detail Buku — Arsip Pitaloka",
-};
+type Props = { params: Promise<{ tab: string; slug: string }> };
+
+/**
+ * Metadata halaman detail buku — diambil dari data buku di DB.
+ * Judul tanpa nama situs (template root layout yang menambahkannya).
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  "use cache";
+  const { slug } = await params;
+  const book = await getBookSeoData(slug);
+
+  if (!book) {
+    return {
+      title: "Buku tidak ditemukan",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  return buildMetadata({
+    title: book.title,
+    description: bookMetaDescription(book),
+    path: bookCanonicalPath(book.slug),
+    image: book.coverUrl,
+    type: "book",
+    publishedTime: book.publishedYear ? `${book.publishedYear}-01-01` : null,
+    authors: book.author ? [book.author] : [],
+    keywords: bookKeywords(book),
+  });
+}
 
 /**
  * `/buku/<slug-tab>/<slug-buku>` — halaman detail buku.
@@ -54,5 +88,11 @@ async function BookDetailContent({
     return <RedirectTo to={`/buku/${BOOK_TAB_SLUG}/${book.slug}`} />;
   }
 
-  return <BookDetailView book={book} />;
+  return (
+    <>
+      {/* Structured data: `Book` + `BreadcrumbList`. */}
+      <BookJsonLd slug={book.slug} />
+      <BookDetailView book={book} />
+    </>
+  );
 }

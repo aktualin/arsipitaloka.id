@@ -2,10 +2,27 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import CatalogView from "@/components/books/CatalogView";
 import PageLoader from "@/components/PageLoader";
+import CatalogJsonLd from "@/components/books/marketplace/CatalogJsonLd";
+import { listBookItems } from "@/components/books/marketplace/catalog-seo";
+import {
+  CATALOG_DESCRIPTION,
+  catalogKeywords,
+} from "@/components/books/marketplace/catalog-meta";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Katalog Buku — Arsip Pitaloka",
-};
+/**
+ * Metadata statis: katalog semua buku.
+ *
+ * Canonical selalu `/buku` (tanpa query string) supaya halaman dengan
+ * filter/paginasi (`?page=`, `?sort=`, `?q=`, …) tetap terindeks ke satu
+ * URL utama. Pencarian (`?q=`) ditangani lewat canonical yang sama.
+ */
+export const metadata = buildMetadata({
+  title: "Katalog Buku",
+  description: CATALOG_DESCRIPTION,
+  path: "/buku",
+  keywords: catalogKeywords("katalog buku"),
+});
 
 type CatalogSearchParams = Record<string, string | string[] | undefined>;
 
@@ -43,12 +60,27 @@ async function CatalogContent({
   await connection();
   const sp = await searchParams;
 
+  // Data terstruktur: CollectionPage + breadcrumb + daftar buku (maks 20).
+  const books = await listBookItems();
+
   return (
-    <CatalogView
-      page={typeof sp.page === "string" ? sp.page : undefined}
-      per={typeof sp.per === "string" ? sp.per : undefined}
-      showHeading={false}
-      searchParams={sp}
-    />
+    <>
+      <CatalogJsonLd
+        name="Katalog Buku"
+        description={CATALOG_DESCRIPTION}
+        path="/buku"
+        breadcrumbs={[
+          { name: "Beranda", path: "/" },
+          { name: "Katalog", path: "/buku" },
+        ]}
+        items={books}
+      />
+      <CatalogView
+        page={typeof sp.page === "string" ? sp.page : undefined}
+        per={typeof sp.per === "string" ? sp.per : undefined}
+        showHeading={false}
+        searchParams={sp}
+      />
+    </>
   );
 }

@@ -7,12 +7,50 @@ import ViralForJustice from "@/components/home/ViralForJustice";
 import DocumentationSection from "@/components/home/DocumentationSection";
 import Footer from "@/components/home/Footer";
 import SiteHeader from "@/components/layout/SiteHeader";
+import PageJsonLd from "@/components/seo/PageJsonLd";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  buildMetadata,
+  SITE_NAME,
+} from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "News & Views — Pitaloka",
-  description:
-    "What's Trending, What's True. Jelajah ilmu tanpa batas dalam satu genggaman saja.",
-};
+const NEWS_DESCRIPTION =
+  "News & Views Pitaloka: berita terkini, artikel blog, UMKM, video YouTube & TikTok, serta dokumentasi kegiatan — “What's Trending, What's True”.";
+
+export const metadata: Metadata = buildMetadata({
+  title: "News & Views",
+  description: NEWS_DESCRIPTION,
+  path: "/news-and-views",
+  image: "/images/news-hero.jpg",
+  keywords: [
+    "berita terkini",
+    "news and views",
+    "artikel Pitaloka",
+    "video YouTube Pitaloka",
+    "TikTok Pitaloka",
+  ],
+});
+
+/** Data terstruktur halaman: kumpulan konten + breadcrumb. */
+const NEWS_JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "News & Views",
+    description: NEWS_DESCRIPTION,
+    url: absoluteUrl("/news-and-views"),
+    isPartOf: {
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: absoluteUrl("/"),
+    },
+  },
+  breadcrumbJsonLd([
+    { name: "Beranda", path: "/" },
+    { name: "News & Views", path: "/news-and-views" },
+  ]),
+];
 
 /**
  * Halaman News & Views (referensi desain: `references/layouts/split/MENU News & Views.pdf`).
@@ -37,6 +75,7 @@ export default function NewsAndViewsPage({
   return (
     <>
       <SiteHeader />
+      <PageJsonLd data={NEWS_JSON_LD} />
       <PdfHero
         src="/images/news-hero.jpg"
         alt="News & Views Pitaloka — What's Trending, What's True."

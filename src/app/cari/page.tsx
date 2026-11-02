@@ -1,7 +1,9 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import CariContent from "./cari-content";
 import Footer from "@/components/home/Footer";
 import SiteHeader from "@/components/layout/SiteHeader";
+import { buildMetadata } from "@/lib/seo";
 
 /**
  * `/cari?q=<kata kunci>` — hasil pencarian global.
@@ -9,7 +11,18 @@ import SiteHeader from "@/components/layout/SiteHeader";
  * Halaman ini membaca `searchParams`, jadi TIDAK bisa memakai `"use cache"`.
  * Pola repo: komponen default (synchronous) membungkus isi dinamis dengan
  * `<Suspense>`, lalu komponen async di dalamnya memanggil `await connection()`.
+ *
+ * Hasil pencarian tidak pernah diindeks (canonical tetap `/cari` tanpa query)
+ * supaya tidak memunculkan banyak URL tipis di hasil pencarian.
  */
+export const metadata: Metadata = buildMetadata({
+  title: "Pencarian",
+  description:
+    "Cari buku, artikel, video, dan dokumentasi di Arsip Pitaloka.",
+  path: "/cari",
+  noIndex: true,
+});
+
 export default function CariPage({
   searchParams,
 }: {

@@ -9,14 +9,82 @@ import { SocialPlatformBadge } from "@/components/social/SocialCard";
 import { BookOpen, FileText, PanelsTopLeft, ArrowLeft } from "lucide-react";
 import PageLoader from "@/components/PageLoader";
 import SiteHeader from "@/components/layout/SiteHeader";
+import PageJsonLd from "@/components/seo/PageJsonLd";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  buildMetadata,
+  DEFAULT_OG_IMAGE,
+  metaDescription,
+  SITE_LOCALE,
+  SITE_NAME,
+} from "@/lib/seo";
+import { resolveEmbedUrl, resolveVideoUrl } from "@/lib/social";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   "use cache";
   const { id } = await params;
-  const post = await prisma.socialMedia.findUnique({ where: { id }, select: { title: true } });
-  return { title: post ? `${post.title} — Arsip Pitaloka` : "Media Sosial" };
+  const post = await prisma.socialMedia.findUnique({
+    where: { id },
+    select: {
+      title: true,
+      caption: true,
+      coverUrl: true,
+      updatedAt: true,
+      published: true,
+    },
+  });
+
+  if (!post) {
+    return buildMetadata({
+      title: "Media Sosial",
+      description: "Video media sosial Arsip Pitaloka.",
+      path: "/sosmed",
+      noIndex: true,
+    });
+  }
+
+  const description = metaDescription(
+    post.caption ||
+      `Video "${post.title}" di kanal media sosial Arsip Pitaloka.`,
+  );
+
+  // Tipe Open Graph "video" tidak termasuk tipe bawaan helper, jadi blok
+  // Open Graph ditulis eksplisit di sini (canonical & Twitter tetap dari
+  // helper yang sama).
+  const base = buildMetadata({
+    title: post.title,
+    description,
+    path: `/sosmed/${id}`,
+    image: post.coverUrl || undefined,
+    modifiedTime: post.updatedAt,
+    noIndex: !post.published,
+  });
+
+  return {
+    ...base,
+    openGraph: {
+      type: "video.other" as const,
+      title: post.title,
+      description,
+      url: absoluteUrl(`/sosmed/${id}`),
+      siteName: SITE_NAME,
+      locale: SITE_LOCALE,
+      images: [
+        {
+          url: absoluteUrl(post.coverUrl || DEFAULT_OG_IMAGE),
+          width: 1200,
+          height: 630,
+          alt: post.title,
+        },
+      ],
+      // `modifiedTime` bukan bagian tipe Open Graph "video.other" di Next,
+      // tapi tetap valid untuk Open Graph — jadi ditulis lewat assertion.
+      modifiedTime: post.updatedAt.toISOString(),
+    } as Metadata["openGraph"],
+  };
 }
 
 async function SosmedDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -32,8 +100,47 @@ async function SosmedDetail({ params }: { params: Promise<{ id: string }> }) {
   });
   if (!post) notFound();
 
+  const embedUrl = resolveEmbedUrl({
+    platform: post.platform,
+    videoId: post.videoId,
+    embedUrl: post.embedUrl,
+  });
+  const videoUrl = resolveVideoUrl({
+    platform: post.platform,
+    videoId: post.videoId,
+  });
+
+  /** Data terstruktur video + breadcrumb halaman detail. */
+  const videoJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: post.title,
+    description: metaDescription(post.caption || post.title),
+    thumbnailUrl: [absoluteUrl(post.coverUrl || DEFAULT_OG_IMAGE)],
+    uploadDate: post.createdAt.toISOString(),
+    dateModified: post.updatedAt.toISOString(),
+    ...(embedUrl ? { embedUrl } : {}),
+    ...(videoUrl ? { contentUrl: videoUrl } : {}),
+    url: absoluteUrl(`/sosmed/${post.id}`),
+    author: post.author
+      ? { "@type": "Person", name: post.author }
+      : { "@type": "Organization", name: SITE_NAME },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      logo: absoluteUrl("/images/logo-pitaloka.png"),
+    },
+  };
+
+  const detailBreadcrumb = breadcrumbJsonLd([
+    { name: "Beranda", path: "/" },
+    { name: "Media Sosial", path: "/sosmed" },
+    { name: post.title, path: `/sosmed/${post.id}` },
+  ]);
+
   return (
     <div className="mx-auto max-w-3xl">
+      <PageJsonLd data={[videoJsonLd, detailBreadcrumb]} />
       <Link href="/sosmed" className="mb-6 inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800">
         <ArrowLeft size={16} /> Kembali ke Media Sosial
       </Link>

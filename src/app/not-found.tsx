@@ -4,6 +4,15 @@ import Footer from "@/components/home/Footer";
 import NavAuthChip from "@/components/layout/NavAuthChip";
 import CartNavButton from "@/components/cart/CartNavButton";
 import SiteHeader from "@/components/layout/SiteHeader";
+import { buildMetadata } from "@/lib/seo";
+
+/** Halaman 404 tidak pernah diindeks. */
+export const metadata = buildMetadata({
+  title: "Halaman Tidak Ditemukan",
+  description:
+    "Halaman yang Anda cari tidak ditemukan. Kembali ke beranda Arsip Pitaloka.",
+  noIndex: true,
+});
 
 const navZones = [
   { label: "Home", href: "/", left: "36%", width: "4.5%" },

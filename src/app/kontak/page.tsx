@@ -8,11 +8,27 @@ import ContactForm from "@/components/contact/ContactForm";
 import Footer from "@/components/home/Footer";
 import PageLoader from "@/components/PageLoader";
 import SiteHeader from "@/components/layout/SiteHeader";
+import PageJsonLd from "@/components/seo/PageJsonLd";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  buildMetadata,
+  SITE_NAME,
+} from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Kontak — Arsip Pitaloka",
-  description: "Hubungi Arsip Pitaloka.",
-};
+export const metadata: Metadata = buildMetadata({
+  title: "Kontak",
+  description:
+    "Hubungi Arsip Pitaloka untuk pertanyaan, kerja sama, atau masukan. Kirim pesan lewat formulir kontak atau melalui surel resmi kami.",
+  path: "/kontak",
+  keywords: ["kontak Arsip Pitaloka", "alamat Pitaloka", "surel Pitaloka"],
+});
+
+/** Breadcrumb statis (data kontak diambil dari pengaturan situs). */
+const KONTAK_BREADCRUMB = breadcrumbJsonLd([
+  { name: "Beranda", path: "/" },
+  { name: "Kontak", path: "/kontak" },
+]);
 
 export default function ContactPage() {
   return (
@@ -31,8 +47,38 @@ async function ContactPageContent() {
 
   const [settings, smtp] = await Promise.all([getSettings(), getSmtpConfig()]);
 
+  // Data terstruktur kontak — diambil dari pengaturan situs. Kalau data
+  // kontak belum diisi, tetap ada Organization minimal (nama saja).
+  const contactOrganization: Record<string, unknown> = {
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: absoluteUrl("/"),
+  };
+  if (settings["company.email"]) {
+    contactOrganization.email = settings["company.email"];
+  }
+  if (settings["company.phone"]) {
+    contactOrganization.telephone = settings["company.phone"];
+  }
+  if (settings["company.address"]) {
+    contactOrganization.address = {
+      "@type": "PostalAddress",
+      addressLocality: settings["company.address"],
+      addressCountry: "ID",
+    };
+  }
+
+  const contactJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    name: "Kontak — Arsip Pitaloka",
+    url: absoluteUrl("/kontak"),
+    mainEntity: contactOrganization,
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-12 md:px-6 lg:py-16">
+      <PageJsonLd data={[contactJsonLd, KONTAK_BREADCRUMB]} />
       <header className="max-w-2xl">
         <p className="text-sm font-medium text-maroon">Kontak</p>
         <h1 className="font-heading mt-1 text-3xl font-bold text-black md:text-4xl">

@@ -7,12 +7,50 @@ import PdfHero from "@/components/layout/PdfHero";
 import type { Zone } from "@/components/layout/OverlayLinks";
 import { SPLIT_NAVBAR_CROP_PT, SPLIT_NAV_ZONES } from "@/components/layout/split-nav";
 import SiteHeader from "@/components/layout/SiteHeader";
+import PageJsonLd from "@/components/seo/PageJsonLd";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  buildMetadata,
+  SITE_NAME,
+} from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "About — Arsip Pitaloka",
-  description:
-    "Arsip, Dokumentasi & E-Book by PITALOKA — wadah digital untuk Buku Langkah.",
-};
+const ABOUT_DESCRIPTION =
+  "Tentang Arsip Pitaloka — pustaka digital karya Rieke Diah Pitaloka yang menghimpun arsip, dokumentasi, dan e-book dalam satu tempat.";
+
+export const metadata: Metadata = buildMetadata({
+  title: "About",
+  description: ABOUT_DESCRIPTION,
+  path: "/about",
+  image: "/images/about-hero.jpg",
+  keywords: [
+    "tentang Pitaloka",
+    "Rieke Diah Pitaloka",
+    "biografi Rieke Diah Pitaloka",
+    "Arsip Pitaloka",
+  ],
+});
+
+/** Data terstruktur halaman: profil situs + breadcrumb. */
+const ABOUT_JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    name: "About — Arsip Pitaloka",
+    description: ABOUT_DESCRIPTION,
+    url: absoluteUrl("/about"),
+    mainEntity: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: absoluteUrl("/"),
+      logo: absoluteUrl("/images/logo-pitaloka.png"),
+    },
+  },
+  breadcrumbJsonLd([
+    { name: "Beranda", path: "/" },
+    { name: "About", path: "/about" },
+  ]),
+];
 
 /**
  * Halaman `/about` dibangun dari potongan `references/layouts/split/MENU
@@ -80,6 +118,7 @@ export default function AboutPage() {
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader />
+      <PageJsonLd data={ABOUT_JSON_LD} />
       <PdfHero
         src="/images/about-hero.jpg"
         alt="Arsip, Dokumentasi & E-Book by PITALOKA"

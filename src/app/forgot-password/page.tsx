@@ -3,8 +3,15 @@ import AuthShell from "@/components/auth/AuthShell";
 import SiteHeader from "@/components/layout/SiteHeader";
 import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
 import { Heading, LogoMark, SubText } from "@/components/auth/fields";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Forget password — Pitaloka" };
+/** Halaman auth tidak boleh diindeks sama sekali. */
+export const metadata = buildMetadata({
+  title: "Lupa Password",
+  description:
+    "Atur ulang kata sandi akun Arsip Pitaloka melalui kode OTP yang dikirim ke surel Anda.",
+  noIndex: true,
+});
 
 export default function ForgotPasswordPage() {
   return (

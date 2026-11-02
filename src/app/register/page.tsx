@@ -13,8 +13,15 @@ import {
   // SocialButtons,
   SubText,
 } from "@/components/auth/fields";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Create your account — Pitaloka" };
+/** Halaman auth tidak boleh diindeks sama sekali. */
+export const metadata = buildMetadata({
+  title: "Daftar",
+  description:
+    "Daftar akun Arsip Pitaloka untuk akses e-book, pustaka digital, dan konten gerakan #ViralForJustice.",
+  noIndex: true,
+});
 
 export default function RegisterPage() {
   return (

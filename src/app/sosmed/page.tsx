@@ -8,8 +8,48 @@ import Pagination from "@/components/Pagination";
 import { clampPage, parsePage, parsePerPage } from "@/lib/pagination";
 import PageLoader from "@/components/PageLoader";
 import SiteHeader from "@/components/layout/SiteHeader";
+import PageJsonLd from "@/components/seo/PageJsonLd";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  buildMetadata,
+  SITE_NAME,
+} from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Media Sosial — Arsip Pitaloka" };
+const SOSMED_DESCRIPTION =
+  "Kumpulan video media sosial Arsip Pitaloka di TikTok, YouTube, dan Instagram — cuplikan kegiatan dan konten yang terhubung ke e-book serta dokumentasi.";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Media Sosial",
+  description: SOSMED_DESCRIPTION,
+  path: "/sosmed",
+  keywords: [
+    "media sosial Pitaloka",
+    "TikTok Pitaloka",
+    "YouTube Pitaloka",
+    "video Pitaloka",
+  ],
+});
+
+/** Data terstruktur halaman: kumpulan video + breadcrumb. */
+const SOSMED_JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Media Sosial",
+    description: SOSMED_DESCRIPTION,
+    url: absoluteUrl("/sosmed"),
+    isPartOf: {
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: absoluteUrl("/"),
+    },
+  },
+  breadcrumbJsonLd([
+    { name: "Beranda", path: "/" },
+    { name: "Media Sosial", path: "/sosmed" },
+  ]),
+];
 
 async function SosmedList({
   searchParams,
@@ -73,6 +113,7 @@ export default function SosmedPage({
   return (
     <>
       <SiteHeader />
+      <PageJsonLd data={SOSMED_JSON_LD} />
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
       <h1 className="mb-6 font-heading text-2xl font-bold text-black sm:mb-8 sm:text-3xl">Media Sosial</h1>
