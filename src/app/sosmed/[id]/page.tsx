@@ -20,12 +20,33 @@ import {
   SITE_NAME,
 } from "@/lib/seo";
 import { resolveEmbedUrl, resolveVideoUrl } from "@/lib/social";
+import PreviewBanner from "@/components/preview/PreviewBanner";
+import { requireAdmin } from "@/lib/admin/require-admin";
+import { previewBackHref } from "@/lib/admin/preview";
+import { isPreviewRequested, type PreviewSearchParams, canRenderContent } from "@/lib/preview";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<PreviewSearchParams>;
+};
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
+  const sp = await searchParams;
+  return buildSosmedMetadata(await params, isPreviewRequested(sp));
+}
+
+/**
+ * Metadata halaman detail video (cached per id + status pratinjau).
+ * Video yang belum tayang — dan halaman pratinjau — tidak boleh diindeks.
+ */
+async function buildSosmedMetadata(
+  { id }: { id: string },
+  isPreview: boolean,
+): Promise<Metadata> {
   "use cache";
-  const { id } = await params;
   const post = await prisma.socialMedia.findUnique({
     where: { id },
     select: {
@@ -60,7 +81,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     path: `/sosmed/${id}`,
     image: post.coverUrl || undefined,
     modifiedTime: post.updatedAt,
-    noIndex: !post.published,
+    noIndex: !post.published || isPreview,
   });
 
   return {
@@ -87,11 +108,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-async function SosmedDetail({ params }: { params: Promise<{ id: string }> }) {
+async function SosmedDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<PreviewSearchParams>;
+}) {
   const { id } = await params;
   await connection();
+  const sp = await searchParams;
+
   const post = await prisma.socialMedia.findUnique({
-    where: { id, published: true },
+    where: { id },
     include: {
       book: { select: { id: true, title: true, slug: true, coverUrl: true } },
       documentation: { select: { id: true, title: true, lead: true, photoUrl: true } },
@@ -99,6 +128,13 @@ async function SosmedDetail({ params }: { params: Promise<{ id: string }> }) {
     },
   });
   if (!post) notFound();
+
+  // Mode pratinjau hanya berlaku kalau pemintanya admin (cek server-side).
+  const isPreview =
+    isPreviewRequested(sp) && (await requireAdmin()) !== null;
+
+  // Video yang belum tayang → 404 untuk semua orang kecuali admin.
+  if (!canRenderContent({ isLive: post.published, isPreview })) notFound();
 
   const embedUrl = resolveEmbedUrl({
     platform: post.platform,
@@ -140,6 +176,17 @@ async function SosmedDetail({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="mx-auto max-w-3xl">
+      {isPreview ? (
+        <PreviewBanner
+          backHref={previewBackHref("social", post.id)}
+          backLabel="Kembali ke admin"
+          note={
+            post.published
+              ? "Mode pratinjau — video ini sudah tayang untuk pengunjung."
+              : "Video ini belum tayang. Hanya admin yang bisa melihatnya lewat pratinjau ini."
+          }
+        />
+      ) : null}
       <PageJsonLd data={[videoJsonLd, detailBreadcrumb]} />
       <Link href="/sosmed" className="mb-6 inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800">
         <ArrowLeft size={16} /> Kembali ke Media Sosial
@@ -203,14 +250,17 @@ async function SosmedDetail({ params }: { params: Promise<{ id: string }> }) {
   );
 }
 
-export default function SosmedDetailPage({ params }: Props) {
+export default function SosmedDetailPage({
+  params,
+  searchParams,
+}: Props) {
   return (
     <>
       <SiteHeader />
 
       <div className="mx-auto max-w-6xl px-6 py-10">
       <Suspense fallback={<PageLoader />}>
-        <SosmedDetail params={params} />
+        <SosmedDetail params={params} searchParams={searchParams} />
       </Suspense>
     </div>
     </>

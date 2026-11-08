@@ -4,10 +4,12 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { Plus, ArrowLeft } from "lucide-react";
 import { requireAdmin } from "@/lib/admin/require-admin";
-import { getEntity } from "@/lib/admin/entities";
+import { getEntity, parseSort } from "@/lib/admin/entities";
 import { getDelegate } from "@/lib/admin/delegates";
+import { bulkDeleteEntity } from "@/lib/admin/actions";
 import EntityTable from "@/lib/admin/table";
 import EntityForm from "@/components/admin/EntityForm";
+import BulkDeleteControls from "@/components/admin/BulkDeleteControls";
 import Pagination from "@/components/Pagination";
 import { clampPage, parsePage, parsePerPage } from "@/lib/pagination";
 import type { FieldDef } from "@/lib/admin/entities";
@@ -43,6 +45,9 @@ type EntitySearchParams = {
   q?: string;
   platform?: string;
   type?: string;
+  sort?: string;
+  dir?: string;
+  flash?: string;
 };
 
 export default function AdminEntityPage({
@@ -86,10 +91,19 @@ async function AdminEntityPageContent({
   const sp = await searchParams;
   const editId = sp.edit ?? null;
 
+  // Urutan kolom (W18): hanya nama field yang boleh diurutkan yang diterima —
+  // nilai dari URL tidak boleh diteruskan mentah ke Prisma.
+  const sort = parseSort(def, sp.sort, sp.dir);
+
   // Prisma memakai { [field]: dir }, bukan { field, dir }.
-  const orderBy = def.orderBy
-    ? { [def.orderBy.field]: def.orderBy.dir }
-    : undefined;
+  const defaultOrder = def.orderBy
+    ? [{ [def.orderBy.field]: def.orderBy.dir }]
+    : [];
+  const orderBy = sort
+    ? [{ [sort.field]: sort.dir }, ...defaultOrder]
+    : defaultOrder.length > 0
+      ? defaultOrder
+      : undefined;
 
   // Pagination: minimal 5 baris per halaman.
   const perPage = parsePerPage(sp.per);
@@ -141,6 +155,10 @@ async function AdminEntityPageContent({
   if (q) carryParams.q = q;
   if (platform) carryParams.platform = platform;
   if (type) carryParams.type = type;
+  if (sort) {
+    carryParams.sort = sort.field;
+    carryParams.dir = sort.dir;
+  }
 
   const total = await delegate.count({ where });
   const page = clampPage(parsePage(sp.page), total, perPage);
@@ -256,6 +274,17 @@ async function AdminEntityPageContent({
       ? `/admin/${def.key}?${new URLSearchParams({ ...carryParams, create: "1" }).toString()}`
       : `/admin/${def.key}?create=1`;
 
+  // Pesan hasil bulk action (W23) — dikirim lewat query `flash`.
+  const flash = sp.flash
+    ? sp.flash.startsWith("err:")
+      ? { tone: "error" as const, text: sp.flash.slice(4) }
+      : { tone: "ok" as const, text: sp.flash.replace(/^ok:/, "") }
+    : null;
+
+  // Bulk action (W23) — hanya entitas yang boleh dihapus.
+  const bulkEnabled = def.canDelete !== false;
+  const bulkFormId = `bulk-${def.key}`;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
@@ -275,11 +304,63 @@ async function AdminEntityPageContent({
         ) : null}
       </header>
 
-      <EntityTable def={def} fields={fields} rows={rows} />
+      {flash ? (
+        <p
+          role="status"
+          className={
+            flash.tone === "ok"
+              ? "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+              : "rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          }
+        >
+          {flash.text}
+        </p>
+      ) : null}
+
+      <form
+        id={bulkFormId}
+        action={bulkDeleteEntity.bind(null, def.key)}
+        className="space-y-3"
+      >
+        {/* Filter & urutan aktif ikut dibawa supaya kembali ke daftar yang sama. */}
+        {(["q", "platform", "type", "sort", "dir"] as const).map((name) =>
+          carryParams[name] ? (
+            <input
+              key={name}
+              type="hidden"
+              name={`_${name}`}
+              value={carryParams[name]}
+            />
+          ) : null,
+        )}
+
+        {bulkEnabled ? (
+          <BulkDeleteControls
+            formId={bulkFormId}
+            entityLabel={def.label.toLowerCase()}
+          />
+        ) : null}
+
+        <EntityTable
+          def={def}
+          fields={fields}
+          rows={rows}
+          basePath={`/admin/${def.key}`}
+          params={carryParams}
+          sort={sort}
+          selectable={bulkEnabled}
+        />
+      </form>
 
       <form method="get" className="flex flex-wrap items-center gap-3">
         {platform ? (
           <input type="hidden" name="platform" value={platform} />
+        ) : null}
+        {sort ? (
+          <>
+            <input type="hidden" name="sort" value={sort.field} />
+            <input type="hidden" name="dir" value={sort.dir} />
+          </>
         ) : null}
         <input
           type="search"

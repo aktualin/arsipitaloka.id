@@ -9,6 +9,10 @@ import { isGoogleAuthEnabled } from "@/lib/auth-config";
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
+/** Durasi session (rencana auth A17) — "Remember me" Centang atau tidak. */
+const SESSION_LONG = 60 * 60 * 24 * 30; // 30 hari
+const SESSION_SHORT = 60 * 60 * 24; // 1 hari
+
 // Google hanya didaftarkan kalau kredensialnya benar-benar ada.
 // Kalau tidak, provider-nya akan gagal dengan "InvalidClient" saat dipakai.
 const providers: NextAuthConfig["providers"] = [
@@ -23,6 +27,11 @@ const providers: NextAuthConfig["providers"] = [
       );
       const password = typeof rawPassword === "string" ? rawPassword : "";
       if (!email || !password) return null;
+
+      // "Remember me" (rencana auth A17) — dikirim dari form login.
+      const remember =
+        String((credentials as Record<string, unknown> | undefined)?.remember ?? "") ===
+        "1";
 
       const user = await prisma.user.findUnique({ where: { email } });
       // passwordHash null → akun dibuat lewat Google, tidak bisa login via password
@@ -60,6 +69,8 @@ const providers: NextAuthConfig["providers"] = [
         email: user.email,
         name: user.name,
         role: user.role,
+        // Ditangkap callback `jwt` untuk menentukan masa berlaku session.
+        remember,
       };
     },
     }),
@@ -125,6 +136,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           select: { role: true },
         });
         token.role = dbUser?.role ?? "CUSTOMER";
+
+        // Masa berlaku session mengikuti pilihan "Remember me" (A17).
+        const remember =
+          (user as unknown as { remember?: boolean }).remember === true;
+        token.exp = Math.floor(
+          Date.now() / 1000 + (remember ? SESSION_LONG : SESSION_SHORT),
+        );
       }
       return token;
     },

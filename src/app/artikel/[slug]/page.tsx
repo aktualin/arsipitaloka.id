@@ -8,6 +8,10 @@ import PageLoader from "@/components/PageLoader";
 import Footer from "@/components/home/Footer";
 import SiteHeader from "@/components/layout/SiteHeader";
 import JsonLd from "@/components/seo/JsonLd";
+import PreviewBanner from "@/components/preview/PreviewBanner";
+import { requireAdmin } from "@/lib/admin/require-admin";
+import { previewBackHref } from "@/lib/admin/preview";
+import { isPreviewRequested, type PreviewSearchParams, canRenderContent } from "@/lib/preview";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import {
   ARTICLE_AUTHOR,
@@ -17,7 +21,10 @@ import {
   articleTypeSlug,
 } from "@/components/articles/article-seo";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<PreviewSearchParams>;
+};
 
 /** Judul ringkas untuk keywords (potong di batas kata, ±8 kata). */
 function shortTitle(title: string): string {
@@ -26,9 +33,29 @@ function shortTitle(title: string): string {
   return words.slice(0, 8).join(" ");
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
+  const sp = await searchParams;
+  return buildArticleMetadata(
+    await params,
+    isPreviewRequested(sp),
+  );
+}
+
+/**
+ * Metadata artikel (cached per slug + status pratinjau).
+ *
+ * Artikel yang belum dipublikasikan tidak boleh diindeks. Halaman
+ * pratinjau (`?preview=1`) juga `noindex` supaya tidak jadi URL duplikat —
+ * canonical tetap `/artikel/<slug>` tanpa query string.
+ */
+async function buildArticleMetadata(
+  { slug }: { slug: string },
+  isPreview: boolean,
+): Promise<Metadata> {
   "use cache";
-  const { slug } = await params;
   const article = await prisma.article.findUnique({
     where: { slug },
     select: {
@@ -66,32 +93,46 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     authors: [ARTICLE_AUTHOR],
     keywords: [typeLabel, shortTitle(article.title)],
     // Artikel yang belum dipublikasikan tidak boleh diindeks.
-    noIndex: !article.published,
+    noIndex: !article.published || isPreview,
   });
 }
 
 /**
  * `/artikel/<slug>` — halaman baca artikel (berita/blog/UMKM), pola blog.
+ *
+ * Query `?preview=1` membuka mode pratinjau: konten yang belum tayang
+ * hanya dirender untuk admin yang sudah login. Pengunjung biasa tetap
+ * mendapat 404 seperti sebelumnya.
  */
-export default function ArticleDetailPage({ params }: Props) {
+export default function ArticleDetailPage({ params, searchParams }: Props) {
   return (
     <>
       <SiteHeader />
       <Suspense fallback={<PageLoader minHeight="60vh" />}>
-        <ArticleDetailContent params={params} />
+        <ArticleDetailContent params={params} searchParams={searchParams} />
       </Suspense>
       <Footer />
     </>
   );
 }
 
-async function ArticleDetailContent({ params }: Props) {
+async function ArticleDetailContent({ params, searchParams }: Props) {
   await connection();
 
   const { slug } = await params;
+  const sp = await searchParams;
+
   const article = await prisma.article.findUnique({ where: { slug } });
 
-  if (!article || !article.published) notFound();
+  if (!article) notFound();
+
+  // Mode pratinjau hanya berlaku kalau pemintanya admin (cek server-side).
+  const isPreview =
+    isPreviewRequested(sp) && (await requireAdmin()) !== null;
+
+  // Konten yang belum tayang: 404 untuk semua orang kecuali admin yang
+  // sedang mempratinjau.
+  if (!canRenderContent({ isLive: article.published, isPreview })) notFound();
 
   const typeSlug = articleTypeSlug(article.type);
   const typeLabel = articleTypeLabel(article.type);
@@ -99,6 +140,17 @@ async function ArticleDetailContent({ params }: Props) {
 
   return (
     <>
+      {isPreview ? (
+        <PreviewBanner
+          backHref={previewBackHref("article", article.id)}
+          backLabel="Kembali ke admin"
+          note={
+            article.published
+              ? "Mode pratinjau — konten ini sudah tayang untuk pengunjung."
+              : "Konten ini belum tayang. Hanya admin yang bisa melihatnya lewat pratinjau ini."
+          }
+        />
+      ) : null}
       <JsonLd data={articleJsonLd(article)} />
       <JsonLd
         data={breadcrumbJsonLd([

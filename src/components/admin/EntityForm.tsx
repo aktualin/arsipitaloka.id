@@ -2,8 +2,11 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { saveEntity, deleteEntity } from "@/lib/admin/actions";
 import { slugify } from "@/lib/slug";
+import { previewPathForEntity } from "@/lib/admin/preview";
 import type { FieldDef, EntityDef } from "@/lib/admin/entities";
 import ImageField from "./ImageField";
 import IconPicker from "./IconPicker";
@@ -115,21 +118,44 @@ export default function EntityForm({
 
   const categoryOptions2 = categoryOptions;
 
+  // Tautan pratinjau: halaman publik konten dengan `?preview=1` supaya
+  // admin bisa melihat tampilannya persis seperti pengunjung — termasuk
+  // kalau kontennya belum tayang. Hanya entitas yang punya halaman detail
+  // publik yang punya tautan ini.
+  const previewHref = useMemo(
+    () => (id ? previewPathForEntity(def.key, values) : null),
+    [def.key, id, values],
+  );
+
   return (
     <form action={action} className="space-y-5 rounded-xl border border-neutral-200 bg-white p-5">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-lg font-bold text-black">
           {id ? `Ubah ${def.singular}` : `Tambah ${def.singular}`}
         </h2>
-        {id ? (
-          <button
-            type="button"
-            onClick={() => router.push(`/admin/${def.key}`)}
-            className="text-sm text-neutral-500 hover:text-neutral-800"
-          >
-            Batal
-          </button>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {previewHref ? (
+            <Link
+              href={previewHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Buka halaman publik konten ini dalam mode pratinjau"
+              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              <ExternalLink size={14} aria-hidden />
+              Pratinjau
+            </Link>
+          ) : null}
+          {id ? (
+            <button
+              type="button"
+              onClick={() => router.push(`/admin/${def.key}`)}
+              className="text-sm text-neutral-500 hover:text-neutral-800"
+            >
+              Batal
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

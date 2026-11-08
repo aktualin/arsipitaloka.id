@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { calculatePrice } from "@/lib/pricing";
 import { canAccessBook } from "@/lib/library";
 import { siteUrl } from "@/lib/site-url";
+import { scheduleOrderConfirmation } from "@/lib/order-notification";
 import {
   createSnapTransaction,
   splitName,
@@ -107,6 +108,10 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Buku gratis: order langsung lunas tanpa payment gateway. Email
+    // konfirmasi dikirim setelah respons (tidak menambah waktu tunggu).
+    scheduleOrderConfirmation(order.id);
 
     return Response.json({
       free: true,

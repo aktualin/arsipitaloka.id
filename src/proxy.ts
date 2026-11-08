@@ -8,6 +8,7 @@ import { ENTITIES } from "@/lib/admin/entities";
  */
 const ADMIN_PAGES = new Set([
   "akun",
+  "media",
   "newsletter",
   "orders",
   "profile",

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/require-admin";
+import { prisma } from "@/lib/prisma";
 import { resolveRange } from "@/lib/admin/date-range";
 import { exportFileName, toCsv, toXlsx } from "@/lib/admin/export";
-import { buildSheets } from "@/lib/admin/report-sheets";
+import { buildSheets, userSheet } from "@/lib/admin/report-sheets";
 import {
   getDashboardStats,
   getFilteredOrders,
@@ -34,6 +35,7 @@ const REPORT_NAMES: Record<string, string> = {
   products: "penjualan-produk",
   customers: "pelanggan",
   content: "konten",
+  users: "pengguna",
   all: "laporan",
 };
 
@@ -70,6 +72,53 @@ export async function GET(request: Request) {
   ]);
 
   const transactions = toTransactionRows(orders);
+
+  // Daftar pengguna (W22) — laporan khusus, tidak bergantung rentang tanggal.
+  if (report === "users") {
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        lastLoginAt: true,
+        _count: { select: { orders: true } },
+      },
+    });
+    const sheet = userSheet(
+      users.map((user) => ({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt,
+        orders: user._count.orders,
+      })),
+    );
+
+    const stamp = range.toInput;
+    if (format === "csv") {
+      return new Response(toCsv([sheet]), {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${exportFileName("pengguna", "csv", stamp)}"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+    return new Response(Buffer.from(toXlsx([sheet])), {
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${exportFileName("pengguna", "xlsx", stamp)}"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
   const sheets = buildSheets(report, stats, transactions);
 
   // Untuk CSV, hanya satu tabel yang bisa ditulis. Pilih sheet yang paling

@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
       // Thumbnail YouTube (disimpan dari field YouTube di admin).
       { protocol: "https", hostname: "i.ytimg.com" },
       { protocol: "https", hostname: "img.youtube.com" },
+      // Banner CTA (aset negara.co.id).
+      { protocol: "https", hostname: "assets.negara.co.id" },
     ],
   },
   turbopack: {

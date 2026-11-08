@@ -29,7 +29,8 @@
     "test:midtrans": "npx tsx scripts/midtrans-smoke.ts",
     "test:midtrans:mock": "npx tsx scripts/midtrans-mock-flow.ts",
     "test:midtrans:browser": "bash scripts/pw-payment-sim.sh",
-    "test:midtrans:server": "npx tsx scripts/midtrans-mock-server.ts"
+    "test:midtrans:server": "npx tsx scripts/midtrans-mock-server.ts",
+    "preview:order-email": "npx tsx scripts/order-email-preview.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",

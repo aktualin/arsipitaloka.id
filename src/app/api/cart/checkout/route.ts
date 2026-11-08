@@ -4,6 +4,7 @@ import { calculateCartPrice } from "@/lib/pricing";
 import { canAccessBook } from "@/lib/library";
 import { getCart, clearCartBooks, removeFromCart } from "@/lib/cart";
 import { siteUrl } from "@/lib/site-url";
+import { scheduleOrderConfirmation } from "@/lib/order-notification";
 import {
   createSnapTransaction,
   splitName,
@@ -84,6 +85,9 @@ export async function POST() {
       userId,
       purchasable.map((p) => p.bookId),
     );
+
+    // Order gratis langsung lunas → kirim email konfirmasi (tanpa menunggu).
+    scheduleOrderConfirmation(order.id);
 
     return Response.json({
       free: true,

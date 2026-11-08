@@ -39,6 +39,12 @@ export type FieldDef = {
   source?: { entity: string; labelField: string };
   /** Tampilkan sebagai kolom di tabel. */
   list?: boolean;
+  /**
+   * Kolom boleh diurutkan lewat klik header tabel. Kalau tidak diisi, sortable
+   * dianggap mengikuti `list` — kecuali untuk kolom berisi teks panjang
+   * (rich text) atau isi binary.
+   */
+  sortable?: boolean;
   readOnly?: boolean;
   step?: string;
   /**
@@ -390,6 +396,50 @@ export function getEntity(key: string): EntityDef | undefined {
 }
 
 /**
+ * Tipe kolom yang isinya terlalu besar atau tidak masuk akal untuk diurutkan
+ * (rich text, file, gambar).
+ */
+const UNSORTABLE_TYPES = new Set<FieldType>([
+  "richtext",
+  "image",
+  "file",
+  "tiktok",
+  "social",
+  "lines",
+]);
+
+/**
+ * Nama field yang boleh dipakai sebagai parameter `?sort=`.
+ *
+ * Hanya kolom yang tampil di tabel (`list`) dan bukan kolom bereaksi/
+ * bertipe panjang. Daftar ini dipakai juga untuk memvalidasi parameter URL —
+ * nama field dari URL tidak boleh diteruskan mentah ke Prisma.
+ */
+export function sortableFields(def: EntityDef): string[] {
+  return def.fields
+    .filter(
+      (field) =>
+        field.list && !UNSORTABLE_TYPES.has(field.type) && field.sortable !== false,
+    )
+    .map((field) => field.name);
+}
+
+/**
+ * Validasi parameter `?sort=` — hanya nama field yang benar-benar boleh
+ * diurutkan. `dir` selalu dinormalisasi ke "asc" / "desc".
+ */
+export function parseSort(
+  def: EntityDef,
+  sort: string | undefined,
+  dir: string | undefined,
+): { field: string; dir: "asc" | "desc" } | null {
+  if (!sort) return null;
+  const allowed = sortableFields(def);
+  if (!allowed.includes(sort)) return null;
+  return { field: sort, dir: dir === "desc" ? "desc" : "asc" };
+}
+
+/**
  * Item menu sidebar admin. Bisa berupa daun (punya `href`) atau parent
  * (punya `children`). Parent menampilkan chevron untuk buka/tutup.
  */
@@ -435,6 +485,7 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ],
   },
   { href: "/admin/users", label: "User", icon: "Users" },
+  { href: "/admin/media", label: "Media", icon: "Image" },
   { href: "/admin/newsletter", label: "Newsletter", icon: "Mail" },
   { href: "/admin/profile", label: "Profil Perusahaan", icon: "Settings" },
 ];

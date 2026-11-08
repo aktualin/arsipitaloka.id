@@ -1,11 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { cacheTag } from "next/cache";
 import SearchBar from "@/components/search/SearchBar";
 import NewsletterForm from "@/components/home/NewsletterForm";
 import { getSettings } from "@/lib/site-settings";
 import { getSiteTabs } from "@/lib/site-tabs";
-import { isDataUrl } from "@/lib/file-to-data-url";
 
 function toList(value: string): string[] {
   return value
@@ -31,14 +29,6 @@ export default async function Footer() {
     <footer className="bg-maroon-dark px-4 pt-12 pb-5 text-white sm:px-6 md:pt-16 md:pb-6 lg:px-10">
       <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-8 sm:gap-10 md:grid-cols-3">
         <div className="space-y-5 sm:space-y-6">
-          <Image
-            src={settings["company.logoUrl"] || "/images/logo-pitaloka.png"}
-            alt={settings["company.name"] || "Pitaloka"}
-            width={160}
-            height={60}
-            unoptimized={isDataUrl(settings["company.logoUrl"])}
-            className="h-8 w-auto sm:h-9"
-          />
           <NewsletterForm
             placeholder={settings["footer.subscribe.placeholder"]}
             buttonLabel={settings["footer.subscribe.button"]}

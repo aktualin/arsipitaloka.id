@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { mapTransactionStatus } from "@/lib/midtrans";
 import { clearCartBooks } from "@/lib/cart";
+import { scheduleOrderConfirmation } from "@/lib/order-notification";
 
 /**
  * Terapkan status transaksi Midtrans ke order.
@@ -53,19 +54,32 @@ export async function applyTransactionStatus(
   }
 
   if (mapped.paid && fraudOk) {
-    await prisma.order.update({
-      where: { id: order.id },
+    // Transisi status dilakukan dengan `updateMany` bersyarat supaya hanya
+    // satu pemanggil (webhook / callback / polling) yang benar-benar
+    // mengubah status. Hasilnya dipakai sebagai penanda "sudah kirim email"
+    // tanpa perlu kolom tambahan di database.
+    const updated = await prisma.order.updateMany({
+      where: { id: order.id, status: { notIn: ["PAID", "COMPLETED"] } },
       data: {
         status: "PAID",
         paidAt: order.paidAt ?? new Date(),
       },
     });
+
     // Buku yang baru lunas dikeluarkan dari keranjang (aman juga untuk order
     // satu-buku BuyButton: buku itu memang tidak ada di keranjang).
     await clearCartBooks(
       order.userId,
       order.items.map((item) => item.bookId),
     );
+
+    // Email konfirmasi order dikirim tepat satu kali, hanya oleh pemanggil
+    // yang berhasil mengubah status ke PAID. Kegagalan kirim tidak
+    // menggagalkan pembayaran (fungsi ini tidak melempar error).
+    if (updated.count === 1) {
+      scheduleOrderConfirmation(order.id);
+    }
+
     return { ok: true, orderStatus: "PAID", paid: true };
   }
 

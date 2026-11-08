@@ -132,8 +132,45 @@ export function customerSheet(stats: DashboardStats): Sheet {
   };
 }
 
-export function statusSheet(stats: DashboardStats): Sheet {
+/**
+ * Daftar seluruh akun (rencana webadmin W22) — termasuk admin, bukan hanya
+ * pembeli yang sudah pernah belanja.
+ */
+export function userSheet(
+  users: {
+    name: string;
+    email: string;
+    role: string;
+    isActive: boolean;
+    createdAt: Date;
+    lastLoginAt: Date | null;
+    orders: number;
+  }[],
+): Sheet {
   return {
+    name: "Pengguna",
+    columns: [
+      { header: "Nama", type: "text", width: 24 },
+      { header: "Email", type: "text", width: 30 },
+      { header: "Role", type: "text", width: 12 },
+      { header: "Aktif", type: "text", width: 8 },
+      { header: "Order", type: "integer", width: 10 },
+      { header: "Terdaftar", type: "text", width: 20 },
+      { header: "Login Terakhir", type: "text", width: 20 },
+    ],
+    rows: users.map((user) => [
+      user.name,
+      user.email,
+      user.role === "ADMIN" ? "Admin" : "Pembeli",
+      user.isActive ? "Ya" : "Tidak",
+      user.orders,
+      formatDateTime(user.createdAt),
+      user.lastLoginAt ? formatDateTime(user.lastLoginAt) : "-",
+    ]),
+  };
+}
+
+export function statusSheet(stats: DashboardStats): Sheet {  return {
     name: "Status Order",
     columns: [
       { header: "Status", type: "text", width: 18 },

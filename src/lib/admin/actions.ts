@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "./require-admin";
 import { ENTITIES } from "./entities";
 import { getDelegate } from "./delegates";
@@ -413,4 +414,70 @@ export async function deleteEntity(
   updateTag("content");
 
   return { ok: true, message: `${def.label} berhasil dihapus.` };
+}
+
+/**
+ * Bulk action: hapus beberapa baris sekaligus (W23).
+ *
+ * Dipakai sebagai `action` pada form, jadi tanda tangannya
+ * `(key, formData)`. Baris yang gagal (mis. buku yang sudah pernah dipesan
+ * — FK Restrict) dilaporkan lewat query `flash`, bukan menggagalkan seluruh
+ * proses.
+ */
+export async function bulkDeleteEntity(
+  key: string,
+  formData: FormData,
+): Promise<void> {
+  const admin = await requireAdmin();
+  if (!admin) {
+    redirect(`/admin/${key}?flash=${encodeURIComponent("err:Tidak diizinkan.")}`);
+  }
+
+  const def = ENTITIES[key];
+  const delegate = def ? getDelegate(def.model) : undefined;
+  const ids = formData
+    .getAll("ids")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  if (!def || !delegate || def.canDelete === false || ids.length === 0) {
+    redirect(
+      `/admin/${key}?flash=${encodeURIComponent(
+        "err:Bulk action tidak tersedia untuk data ini.",
+      )}`,
+    );
+  }
+
+  let deleted = 0;
+  let failed = 0;
+  for (const id of ids) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await delegate.delete({ where: { id } });
+      deleted += 1;
+    } catch (error: any) {
+      failed += 1;
+      if (error?.code !== "P2003") console.error(error);
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/admin/${key}`);
+  revalidatePath("/akun");
+  updateTag("content");
+
+  const message =
+    failed === 0
+      ? `${deleted} ${def.label} berhasil dihapus.`
+      : `${deleted} ${def.label} dihapus, ${failed} gagal — sudah dipakai data lain (arsipkan saja).`;
+
+  // Kembalikan ke daftar dengan filter & urutan yang sama.
+  const back = new URLSearchParams();
+  for (const name of ["q", "platform", "type", "sort", "dir"]) {
+    const value = formData.get(`_${name}`);
+    if (value) back.set(name, String(value));
+  }
+  back.set("flash", `ok:${message}`);
+
+  redirect(`/admin/${key}?${back.toString()}`);
 }

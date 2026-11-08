@@ -18,6 +18,28 @@ import {
 
 export type MailContent = { html: string; text: string };
 
+/** Format Rupiah untuk isi email (id-ID, tanpa desimal). */
+function rupiah(value: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(Math.round(value || 0));
+}
+
+/** Tanggal Indonesia (WIB) untuk isi email. */
+function tanggal(value: Date | string | null | undefined): string {
+  if (!value) return "-";
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  });
+}
+
 /** Kartu konten baru (buku / berita / artikel / dokumentasi). */
 export function contentAnnouncementMail(options: {
   eyebrow: string;
@@ -144,6 +166,174 @@ export function resetOtpMail(options: {
     `Berlaku ${minutes} menit, hanya bisa dipakai sekali.`,
     "",
     "Kalau bukan Anda yang meminta, abaikan email ini.",
+  ].join("\n");
+
+  return { html, text };
+}
+
+/** Baris item buku di email konfirmasi order. */
+export type OrderMailLine = {
+  title: string;
+  qty: number;
+  /** Harga per item dalam Rupiah (sudah Termasuk qty). */
+  amount: number;
+};
+
+/**
+ * Konfirmasi order / pembayaran diterima.
+ *
+ * Dikirim sekali ketika order berubah jadi lunas. Isinya: nomor order,
+ * status pembayaran, daftar buku, subtotal–pajak–total, dan tautan ke
+ * halaman detail order di area pembeli.
+ */
+export function orderConfirmationMail(options: {
+  orderNumber: string;
+  buyerName?: string | null;
+  lines: OrderMailLine[];
+  /** Subtotal (IDR). */
+  subtotal: number;
+  /** Pajak (IDR). */
+  taxAmount: number;
+  /** Total yang ditagih (IDR). */
+  total: number;
+  /** Metode pembayaran, mis. "SNAP (midtrans)" atau "FREE". */
+  paymentMethod: string;
+  paidAt?: Date | string | null;
+  /** URL absolut halaman detail order (/akun/orders/<id>). */
+  orderUrl: string;
+  /** True kalau order buku gratis (tanpa pembayaran). */
+  isFree?: boolean;
+}): MailContent {
+  const {
+    orderNumber,
+    buyerName,
+    lines,
+    subtotal,
+    taxAmount,
+    total,
+    paymentMethod,
+    paidAt,
+    orderUrl,
+    isFree = false,
+  } = options;
+
+  const greeting = buyerName ? `Halo ${buyerName},` : "Halo,";
+  const heading = isFree ? "Order Anda sudah selesai" : "Pembayaran diterima";
+  const preheader = isFree
+    ? `Order #${orderNumber} — buku Anda sudah tersedia di Pustaka Saya.`
+    : `Order #${orderNumber} — pembayaran sudah kami terima, buku Anda siap dibaca.`;
+
+  const linesHtml = lines
+    .map(
+      (line) => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid ${MAIL_THEME.line};font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;color:${MAIL_THEME.ink};">
+          ${escapeHtml(line.title)}
+        </td>
+        <td align="center" style="padding:10px 6px;border-bottom:1px solid ${MAIL_THEME.line};font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;color:${MAIL_THEME.body};">
+          ${line.qty}
+        </td>
+        <td align="right" style="padding:10px 0;border-bottom:1px solid ${MAIL_THEME.line};font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;color:${MAIL_THEME.ink};">
+          ${escapeHtml(rupiah(line.amount))}
+        </td>
+      </tr>`,
+    )
+    .join("");
+
+  const taxRow =
+    taxAmount > 0
+      ? `
+      <tr>
+        <td colspan="2" style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;color:${MAIL_THEME.body};">Pajak</td>
+        <td align="right" style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;color:${MAIL_THEME.body};">${escapeHtml(rupiah(taxAmount))}</td>
+      </tr>`
+      : "";
+
+  const html = mailLayout({
+    preheader,
+    heading,
+    bodyHtml: `
+      <p style="margin:0 0 14px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:${MAIL_THEME.body};">
+        ${greeting} ${
+          isFree
+            ? "buku yang Anda klaim sudah tersedia di Pustaka Saya. Tidak ada pembayaran yang perlu dilakukan."
+            : "terima kasih. Pembayaran Anda sudah kami terima dan buku Anda sekarang bisa dibaca."
+        }
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 20px 0;background-color:${MAIL_THEME.cream};border:1px solid ${MAIL_THEME.line};border-radius:12px;">
+        <tr>
+          <td style="padding:18px 20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MAIL_THEME.body};">Nomor order</td>
+                <td align="right" style="padding:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${MAIL_THEME.maroon};">#${escapeHtml(orderNumber)}</td>
+              </tr>
+              <tr>
+                <td style="padding:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MAIL_THEME.body};">Status pembayaran</td>
+                <td align="right" style="padding:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${MAIL_THEME.ink};">${isFree ? "Selesai (gratis)" : "Lunas"}</td>
+              </tr>
+              <tr>
+                <td style="padding:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MAIL_THEME.body};">Metode pembayaran</td>
+                <td align="right" style="padding:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MAIL_THEME.ink};">${escapeHtml(paymentMethod)}</td>
+              </tr>
+              <tr>
+                <td style="padding:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MAIL_THEME.body};">Tanggal</td>
+                <td align="right" style="padding:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MAIL_THEME.ink};">${escapeHtml(tanggal(paidAt))}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 18px 0;">
+        <tr>
+          <td align="left" style="padding:0 0 8px 0;border-bottom:2px solid ${MAIL_THEME.line};font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${MAIL_THEME.body};">Judul</td>
+          <td align="center" width="60" style="padding:0 0 8px 0;border-bottom:2px solid ${MAIL_THEME.line};font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${MAIL_THEME.body};">Qty</td>
+          <td align="right" style="padding:0 0 8px 0;border-bottom:2px solid ${MAIL_THEME.line};font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${MAIL_THEME.body};">Harga</td>
+        </tr>
+        ${linesHtml}
+        <tr>
+          <td colspan="2" style="padding:10px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;color:${MAIL_THEME.body};">Subtotal</td>
+          <td align="right" style="padding:10px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;color:${MAIL_THEME.ink};">${escapeHtml(rupiah(subtotal))}</td>
+        </tr>
+        ${taxRow}
+        <tr>
+          <td colspan="2" style="padding:8px 0 0 0;border-top:1px solid ${MAIL_THEME.line};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:${MAIL_THEME.ink};">Total</td>
+          <td align="right" style="padding:8px 0 0 0;border-top:1px solid ${MAIL_THEME.line};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:${MAIL_THEME.maroon};">${escapeHtml(rupiah(total))}</td>
+        </tr>
+      </table>
+
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:22px;color:${MAIL_THEME.body};">
+        Buku Anda sudah tersedia di Pustaka Saya. Buka detail order di bawah untuk melihat daftar buku dan mengunduh e-book yang Anda beli.
+      </p>
+    `,
+    cta: { label: "Lihat detail order", url: orderUrl },
+    footerNote: "Arsip Pitaloka — konfirmasi pembelian",
+  });
+
+  const text = [
+    heading + " — Arsip Pitaloka",
+    "",
+    `${greeting} ${
+      isFree
+        ? "buku yang Anda klaim sudah tersedia di Pustaka Saya."
+        : "terima kasih. Pembayaran Anda sudah kami terima dan buku Anda sekarang bisa dibaca."
+    }`,
+    "",
+    `Nomor order: #${orderNumber}`,
+    `Status pembayaran: ${isFree ? "Selesai (gratis)" : "Lunas"}`,
+    `Metode pembayaran: ${paymentMethod}`,
+    `Tanggal: ${tanggal(paidAt)}`,
+    "",
+    ...lines.map((line) => `- ${line.title} x${line.qty}: ${rupiah(line.amount)}`),
+    "",
+    `Subtotal: ${rupiah(subtotal)}`,
+    ...(taxAmount > 0 ? [`Pajak: ${rupiah(taxAmount)}`] : []),
+    `Total: ${rupiah(total)}`,
+    "",
+    "Lihat detail order: " + orderUrl,
+    "Pustaka Saya: " + siteUrl("/akun"),
   ].join("\n");
 
   return { html, text };

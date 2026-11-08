@@ -91,6 +91,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   "newsletter.fromName": "Arsip Pitaloka",
   "newsletter.sendWelcome": "true",
 
+  // Notifikasi order (email konfirmasi pembelian ke pembeli)
+  "order.email.enabled": "true",
+  "order.email.fromName": "Arsip Pitaloka",
+
   // Autentikasi
   // Masa berlaku OTP reset password (menit).
   "auth.otp.expiryMinutes": "5",

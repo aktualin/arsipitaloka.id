@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin/require-admin";
+import { scheduleOrderConfirmation } from "@/lib/order-notification";
 import type { ActionState } from "@/lib/admin/action-state";
 
 const STATUSES = ["PENDING", "PAID", "SHIPPED", "COMPLETED", "CANCELLED"];
@@ -37,13 +38,34 @@ export async function updateOrderStatus(
     };
   }
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: {
-      status: status as "PENDING",
-      paidAt: status === "PAID" && !order.paidAt ? new Date() : order.paidAt,
-    },
-  });
+  // Transisi ke "PAID" ditulis dengan `updateMany` bersyarat supaya email
+  // konfirmasi hanya dikirim satu kali, walau admin mengubah status
+  // berulang kali.
+  let becamePaid = false;
+  if (status === "PAID" && !sudahBayar) {
+    const updated = await prisma.order.updateMany({
+      where: { id: orderId, status: { notIn: ["PAID", "COMPLETED"] } },
+      data: {
+        status: "PAID",
+        paidAt: order.paidAt ?? new Date(),
+      },
+    });
+    becamePaid = updated.count === 1;
+  } else {
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: status as "PENDING",
+        paidAt: status === "PAID" && !order.paidAt ? new Date() : order.paidAt,
+      },
+    });
+  }
+
+  // Pembeli menerima email konfirmasi saat order ditandai lunas (pembayaran
+  // manual oleh admin). Kegagalan email tidak membatalkan perubahan status.
+  if (becamePaid) {
+    scheduleOrderConfirmation(orderId);
+  }
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);

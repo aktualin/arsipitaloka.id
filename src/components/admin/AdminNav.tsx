@@ -17,6 +17,8 @@ import {
   ShoppingCart,
   Users,
   Settings,
+  Image as ImageIcon,
+  Mail,
   ChevronRight,
   ChevronDown,
   LogOut,
@@ -24,6 +26,17 @@ import {
   X,
 } from "lucide-react";
 import { ADMIN_MENU, type AdminMenuItem } from "@/lib/admin/entities";
+
+/**
+ * Tautan tambahan di dalam grup menu.
+ *
+ * `ADMIN_MENU` (di `entities.ts`) adalah sumber utama menu admin; tautan
+ * utilitas yang bukan entitas CRUD (mis. import CSV) ditambahkan di sini
+ * supaya daftar entitas tetap satu sumber kebenaran.
+ */
+const ADMIN_MENU_EXTRA: Record<string, { href: string; label: string }[]> = {
+  "Toko E-Book": [{ href: "/admin/book/import", label: "Import Buku (CSV)" }],
+};
 
 const ICONS = {
   LayoutDashboard,
@@ -37,6 +50,8 @@ const ICONS = {
   ShoppingCart,
   Users,
   Settings,
+  Image: ImageIcon,
+  Mail,
 } as const;
 
 type IconName = keyof typeof ICONS;
@@ -240,7 +255,10 @@ function MenuGroup({
   pathname: string;
   platform: string | null;
 }) {
-  const children = item.children ?? [];
+  const children = [
+    ...(item.children ?? []),
+    ...(ADMIN_MENU_EXTRA[item.label] ?? []),
+  ];
   const anyChildActive = children.some((c) =>
     childActive(c.href, pathname, platform),
   );

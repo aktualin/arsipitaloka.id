@@ -8,6 +8,31 @@ import { sanitizeCallbackUrl } from "@/lib/callback-url";
 import { AMBER, CheckBox, Field, PasswordField, SubmitButton } from "./fields";
 import Spinner from "@/components/Spinner";
 
+/**
+ * Minta alasan kegagalan login yang lebih spesifik (rencana auth A15):
+ * akun terkunci sementara atau akun dinonaktifkan.
+ *
+ * Endpoint diagnosa hanya membocorkan keadaan akun kalau password-nya benar,
+ * jadi halaman login tetap tidak bisa dipakai menebak email terdaftar.
+ */
+async function diagnoseLoginFailure(
+  email: string,
+  password: string,
+): Promise<string> {
+  const generic = "Email atau password salah.";
+  try {
+    const response = await fetch("/api/auth/login-diagnostic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = (await response.json()) as { message?: string };
+    return data.message || generic;
+  } catch {
+    return generic;
+  }
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -34,17 +59,20 @@ export default function LoginForm() {
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") ?? "");
     const password = String(form.get("password") ?? "");
+    // "Remember me" menentukan masa berlaku session (rencana auth A17).
+    const remember = form.get("remember") ? "1" : "0";
 
     const result = await signIn("credentials", {
       email,
       password,
+      remember,
       redirect: false,
     });
 
     setPending(false);
 
     if (result?.error) {
-      setError("Email atau password salah.");
+      setError(await diagnoseLoginFailure(email, password));
       return;
     }
 
@@ -80,9 +108,10 @@ export default function LoginForm() {
       </div>
 
       <div className="mt-[29px] flex items-center justify-between">
-        {/* "Remember me" sudah ada di desain; durasi session per-device
-            belum dibedakan (rencana auth A17 — minor). */}
-        <CheckBox label="Remember me" name="remember" defaultChecked />
+        {/* "Remember me" ada di desain — sekarang benar-benar affects masa
+            berlaku session: 30 hari bila dicentang, 1 hari bila tidak
+            (rencana auth A17). */}
+        <CheckBox label="Remember me" name="remember" value="1" defaultChecked />
         <Link
           href="/forgot-password"
           className="inline-flex min-h-9 items-center text-[15px]"

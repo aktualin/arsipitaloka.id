@@ -118,6 +118,21 @@ export const SETTINGS_SCHEMA: SettingField[] = [
   },
 
   {
+    key: "order.email.enabled",
+    label: "Kirim email notifikasi order",
+    type: "boolean",
+    group: "Order",
+    help: "Kalau mati, pembeli tidak menerima email konfirmasi pembayaran.",
+  },
+  {
+    key: "order.email.fromName",
+    label: "Nama pengirim",
+    type: "text",
+    group: "Order",
+    help: "Nama yang tampil di kotak masuk pembeli.",
+  },
+
+  {
     key: "auth.otp.expiryMinutes",
     label: "Masa berlaku OTP (menit)",
     type: "number",
@@ -146,6 +161,7 @@ export const SETTING_GROUPS = [
   "Copy Landing Page",
   "Kontak / SMTP",
   "Newsletter",
+  "Order",
   "Autentikasi",
   "Pajak",
 ];

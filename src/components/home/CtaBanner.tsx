@@ -5,10 +5,10 @@ export default function CtaBanner() {
   return (
     <section className="relative w-full">
       <Image
-        src="/images/cta-full.jpg"
+        src="https://assets.negara.co.id/uploads/2026/09/23/a2edd6e9-2a26-423c-bdc2-849784378505.jpg"
         alt="Rieke Diah Pitaloka"
-        width={4000}
-        height={1407}
+        width={1200}
+        height={800}
         sizes="100vw"
         className="h-auto w-full"
       />
